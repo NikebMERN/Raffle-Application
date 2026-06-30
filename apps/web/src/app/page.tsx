@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { api, Raffle } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 async function getRaffles() {
   try {
     const res = await api<{ data: Raffle[] }>('/raffles/public');

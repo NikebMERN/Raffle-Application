@@ -38,3 +38,4 @@ jobs:
         run: pnpm --filter @raffle/web build
         env:
           API_URL: http://localhost:3001
+          NEXT_PUBLIC_API_URL: http://localhost:3001

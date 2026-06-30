@@ -2,6 +2,8 @@ import { Navbar } from '@/components/Navbar';
 import { StatCard } from '@/components/StatCard';
 import { api, User } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 async function getUser() {
   try {
     return await api<User>('/auth/me');

@@ -19,7 +19,8 @@ jobs:
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --eval \"db.adminCommand('ping')\""
+          --replSet rs0
+          --health-cmd "mongosh -u raffle -p raffle_secret --authenticationDatabase admin --eval \"db.adminCommand('ping')\""
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -41,10 +42,22 @@ jobs:
 
       - run: pnpm install
 
+      - name: Initialize MongoDB replica set
+        run: |
+          for i in $(seq 1 30); do
+            if docker run --rm --network host mongo:7 mongosh "mongodb://raffle:raffle_secret@127.0.0.1:27017/admin?authSource=admin" --quiet --eval "try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}).ok }" 2>/dev/null | grep -q 1; then
+              echo "Replica set ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Replica set failed to initialize"
+          exit 1
+
       - name: Setup API env
         run: |
           cp apps/api/.env.example apps/api/.env
-          echo 'MONGODB_URI="mongodb://raffle:raffle_secret@localhost:27017/raffle_db?authSource=admin"' >> apps/api/.env
+          echo 'MONGODB_URI="mongodb://raffle:raffle_secret@localhost:27017/raffle_db?authSource=admin&replicaSet=rs0"' >> apps/api/.env
 
       - name: Generate Prisma client
         run: pnpm db:generate

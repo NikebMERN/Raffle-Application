@@ -19,27 +19,85 @@ const MODULES = [
 
 const ACTIONS = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'BULK_ACTION', 'DRAW', 'SETTLE'] as const;
 
+async function findOrCreatePermission(module: string, action: string) {
+  const existing = await prisma.permission.findFirst({ where: { module, action } });
+  if (existing) return existing;
+  return prisma.permission.create({ data: { module, action } });
+}
+
+async function findOrCreateRole(roleData: { name: string; code: string; description: string }) {
+  const existing = await prisma.role.findUnique({ where: { code: roleData.code } });
+  if (existing) return existing;
+  return prisma.role.create({ data: roleData });
+}
+
+async function findOrCreateRolePermission(roleId: string, permissionId: string) {
+  const existing = await prisma.rolePermission.findFirst({
+    where: { roleId, permissionId },
+  });
+  if (existing) return existing;
+  return prisma.rolePermission.create({ data: { roleId, permissionId } });
+}
+
+async function findOrCreateUser(data: {
+  email: string;
+  passwordHash: string;
+  firstName: string;
+  lastName: string;
+  emailVerified: boolean;
+  roleId?: string;
+}) {
+  const existing = await prisma.user.findUnique({ where: { email: data.email } });
+  if (existing) return existing;
+  return prisma.user.create({
+    data: {
+      email: data.email,
+      passwordHash: data.passwordHash,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      emailVerified: data.emailVerified,
+      roles: data.roleId ? { create: { roleId: data.roleId } } : undefined,
+      wallet: { create: { balance: 0 } },
+    },
+  });
+}
+
+async function findOrCreateSetting(setting: { key: string; value: string; description: string }) {
+  const existing = await prisma.systemSetting.findUnique({ where: { key: setting.key } });
+  if (existing) {
+    return prisma.systemSetting.update({
+      where: { key: setting.key },
+      data: { value: setting.value },
+    });
+  }
+  return prisma.systemSetting.create({ data: setting });
+}
+
+async function findOrCreateTemplate(template: {
+  name: string;
+  channel: 'EMAIL';
+  subject: string;
+  body: string;
+  variables: string[];
+}) {
+  const existing = await prisma.notificationTemplate.findFirst({ where: { name: template.name } });
+  if (existing) return existing;
+  return prisma.notificationTemplate.create({ data: { ...template, variables: template.variables } });
+}
+
 async function main() {
   console.log('Seeding MongoDB database...');
 
   const permissions = [];
   for (const module of MODULES) {
     for (const action of ACTIONS) {
-      const perm = await prisma.permission.upsert({
-        where: { module_action: { module, action } },
-        update: {},
-        create: { module, action },
-      });
+      const perm = await findOrCreatePermission(module, action);
       permissions.push(perm);
     }
   }
 
   for (const roleData of ROLES) {
-    const role = await prisma.role.upsert({
-      where: { code: roleData.code },
-      update: {},
-      create: roleData,
-    });
+    const role = await findOrCreateRole(roleData);
 
     const permsToAssign =
       roleData.code === 'SUPER_ADMIN'
@@ -60,59 +118,40 @@ async function main() {
               );
 
     for (const perm of permsToAssign) {
-      await prisma.rolePermission.upsert({
-        where: { roleId_permissionId: { roleId: role.id, permissionId: perm.id } },
-        update: {},
-        create: { roleId: role.id, permissionId: perm.id },
-      });
+      await findOrCreateRolePermission(role.id, perm.id);
     }
   }
 
   const adminRole = await prisma.role.findUnique({ where: { code: 'SUPER_ADMIN' } });
   const passwordHash = await bcrypt.hash('Admin123!', 12);
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@footballclub.example' },
-    update: {},
-    create: {
-      email: 'admin@footballclub.example',
-      passwordHash,
-      firstName: 'Super',
-      lastName: 'Admin',
-      emailVerified: true,
-      roles: adminRole ? { create: { roleId: adminRole.id } } : undefined,
-      wallet: { create: { balance: 0 } },
-    },
+  const admin = await findOrCreateUser({
+    email: 'admin@footballclub.example',
+    passwordHash,
+    firstName: 'Super',
+    lastName: 'Admin',
+    emailVerified: true,
+    roleId: adminRole?.id,
   });
 
   const sellerRole = await prisma.role.findUnique({ where: { code: 'COMMUNITY_SELLER' } });
-  const seller = await prisma.user.upsert({
-    where: { email: 'seller@footballclub.example' },
-    update: {},
-    create: {
-      email: 'seller@footballclub.example',
-      passwordHash: await bcrypt.hash('Seller123!', 12),
-      firstName: 'Community',
-      lastName: 'Seller',
-      emailVerified: true,
-      roles: sellerRole ? { create: { roleId: sellerRole.id } } : undefined,
-      wallet: { create: { balance: 0 } },
-    },
+  const seller = await findOrCreateUser({
+    email: 'seller@footballclub.example',
+    passwordHash: await bcrypt.hash('Seller123!', 12),
+    firstName: 'Community',
+    lastName: 'Seller',
+    emailVerified: true,
+    roleId: sellerRole?.id,
   });
 
   const userRole = await prisma.role.findUnique({ where: { code: 'USER' } });
-  await prisma.user.upsert({
-    where: { email: 'user@footballclub.example' },
-    update: {},
-    create: {
-      email: 'user@footballclub.example',
-      passwordHash: await bcrypt.hash('User123!', 12),
-      firstName: 'Demo',
-      lastName: 'User',
-      emailVerified: true,
-      roles: userRole ? { create: { roleId: userRole.id } } : undefined,
-      wallet: { create: { balance: 0 } },
-    },
+  await findOrCreateUser({
+    email: 'user@footballclub.example',
+    passwordHash: await bcrypt.hash('User123!', 12),
+    firstName: 'Demo',
+    lastName: 'User',
+    emailVerified: true,
+    roleId: userRole?.id,
   });
 
   const settings = [
@@ -125,11 +164,7 @@ async function main() {
   ];
 
   for (const setting of settings) {
-    await prisma.systemSetting.upsert({
-      where: { key: setting.key },
-      update: { value: setting.value },
-      create: setting,
-    });
+    await findOrCreateSetting(setting);
   }
 
   const templates = [
@@ -157,11 +192,7 @@ async function main() {
   ];
 
   for (const t of templates) {
-    await prisma.notificationTemplate.upsert({
-      where: { name: t.name },
-      update: {},
-      create: { ...t, variables: t.variables },
-    });
+    await findOrCreateTemplate(t);
   }
 
   let raffle = await prisma.raffle.findFirst({ where: { title: 'Season Finale Grand Draw' } });

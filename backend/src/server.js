@@ -3,11 +3,13 @@ const http = require('http');
 const { createApp } = require('./app');
 const { initSocket } = require('./websocket/socket');
 const logger = require('./config/logger');
+const { initializeFirebase } = require('./config/firebase');
 const { processCleanupJob } = require('./jobs/cleanupJob');
 
 const PORT = process.env.PORT || 5000;
 
 async function start() {
+  initializeFirebase();
   const app = await createApp();
   const server = http.createServer(app);
   initSocket(server, app);

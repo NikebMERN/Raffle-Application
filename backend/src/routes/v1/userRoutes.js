@@ -9,6 +9,8 @@ const { requireAdmin } = require('../../middleware/role');
 const router = express.Router();
 
 router.get('/profile', authenticate, userController.profile);
+router.post('/fcm-token', authenticate, userController.registerFcmToken);
+router.delete('/fcm-token', authenticate, userController.removeFcmToken);
 router.get('/notifications', authenticate, async (req, res, next) => {
   try {
     res.json(await notificationService.getUserNotifications(req.user._id, req.query));

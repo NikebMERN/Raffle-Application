@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { paginate, paginatedResponse, omit } = require('../utils/helpers');
+const notificationService = require('../services/notificationService');
 
 exports.list = async (req, res, next) => {
   try {
@@ -53,4 +54,26 @@ exports.ban = async (req, res, next) => {
 
 exports.profile = async (req, res) => {
   res.json(req.user);
+};
+
+exports.registerFcmToken = async (req, res, next) => {
+  try {
+    const result = await notificationService.registerFcmToken(
+      req.user._id,
+      req.body.token,
+      req.body.deviceId,
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.removeFcmToken = async (req, res, next) => {
+  try {
+    const result = await notificationService.removeFcmToken(req.user._id, req.body.token);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
 };

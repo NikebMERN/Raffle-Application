@@ -39,6 +39,12 @@ const userSchema = new mongoose.Schema(
     },
     passwordResetToken: String,
     passwordResetExpires: Date,
+    fcmTokens: [{
+      token: { type: String, required: true },
+      deviceId: String,
+      platform: { type: String, default: 'web' },
+      updatedAt: { type: Date, default: Date.now },
+    }],
   },
   { timestamps: true },
 );

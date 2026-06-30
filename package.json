@@ -7,14 +7,34 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:api": "pnpm --filter @raffle/api dev",
     "dev:web": "pnpm --filter @raffle/web dev",
-    "seed": "cd backend && npm run seed",
-    "test": "cd backend && npm test",
-    "test:backend": "cd backend && npm test",
+    "build": "turbo build",
     "build:frontend": "cd frontend && npm run build",
-    "build": "cd frontend && npm run build"
+    "test": "turbo test",
+    "test:backend": "cd backend && npm test",
+    "seed": "cd backend && npm run seed",
+    "db:generate": "pnpm --filter @raffle/api db:generate",
+    "db:push": "pnpm --filter @raffle/api db:push",
+    "db:seed": "pnpm --filter @raffle/api db:seed",
+    "db:studio": "pnpm --filter @raffle/api db:studio"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
   },
-  "packageManager": "pnpm@10.33.3"
+  "packageManager": "pnpm@10.33.3",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "esbuild",
+      "prisma",
+      "sharp"
+    ]
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }

@@ -10,31 +10,8 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Start MongoDB replica set
-        run: |
-          docker run -d --name mongodb -p 27017:27017 \
-            -e MONGO_INITDB_ROOT_USERNAME=raffle \
-            -e MONGO_INITDB_ROOT_PASSWORD=raffle_secret \
-            mongo:7 --replSet rs0
-          for i in $(seq 1 30); do
-            if docker exec mongodb mongosh -u raffle -p raffle_secret --authenticationDatabase admin --quiet --eval "try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}).ok }" 2>/dev/null | grep -q 1; then
-              echo "Replica set ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Replica set failed to initialize"
-          docker logs mongodb
-          exit 1
 
       - uses: pnpm/action-setup@v4
 
@@ -46,18 +23,10 @@ jobs:
       - run: pnpm install
 
       - name: Setup API env
-        run: |
-          cp apps/api/.env.example apps/api/.env
-          echo 'MONGODB_URI="mongodb://raffle:raffle_secret@localhost:27017/raffle_db?authSource=admin&replicaSet=rs0"' >> apps/api/.env
+        run: cp apps/api/.env.example apps/api/.env
 
       - name: Generate Prisma client
         run: pnpm db:generate
-
-      - name: Push MongoDB schema
-        run: pnpm db:push
-
-      - name: Seed database
-        run: pnpm db:seed
 
       - name: Run API tests
         run: pnpm --filter @raffle/api test

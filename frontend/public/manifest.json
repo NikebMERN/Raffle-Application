@@ -1,0 +1,9 @@
+{
+  "name": "SF Football Club Raffle",
+  "short_name": "SF Raffle",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e40af",
+  "theme_color": "#1e40af",
+  "description": "Community raffle for SF Football Club"
+}

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sf-raffle-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sf-raffle-backend
+  template:
+    metadata:
+      labels:
+        app: sf-raffle-backend
+    spec:
+      containers:
+        - name: backend
+          image: sf-raffle-backend:latest
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: sf-raffle-config
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000

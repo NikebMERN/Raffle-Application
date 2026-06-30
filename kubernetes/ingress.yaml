@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sf-raffle-ingress
+spec:
+  rules:
+    - host: raffle.sffootballclub.example
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: sf-raffle-backend
+                port:
+                  number: 5000

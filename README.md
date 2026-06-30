@@ -1,106 +1,67 @@
-# Football Club Community Raffle Management System
+# SF Football Club Community Raffle
 
-Production-ready full-stack web application for managing football club community raffles with online and offline ticket sales, secure draws, wallet management, and multi-role dashboards.
+Production-ready MERN stack raffle platform for SF Football Club.
 
-## Tech Stack
+## Stacks
 
-- **Frontend:** Next.js 15, React, TypeScript, Tailwind CSS
-- **Backend:** NestJS, TypeScript, Prisma ORM
-- **Database:** **MongoDB** (MERN data layer)
-- **Cache:** Redis
-- **Payments:** Stripe
-- **Monorepo:** Turborepo + pnpm
+| Layer | Path | Technology |
+|-------|------|------------|
+| **Backend (primary)** | `/backend` | Express.js, MongoDB, Mongoose, Socket.io, Redis |
+| **Frontend (primary)** | `/frontend` | React, Vite, Redux Toolkit, Tailwind CSS |
+| **Legacy API** | `/apps/api` | NestJS + Prisma (MongoDB) |
+| **Legacy Web** | `/apps/web` | Next.js 15 |
 
-## Features
-
-- Public website with raffle browsing and online ticket purchase
-- Role-based dashboards: User, Community Seller, Finance, Super Admin
-- Offline ticket book distribution and manual sales
-- Cryptographically secure draw engine with audit reports
-- Wallet ledger, Stripe payments, notifications, reports, and analytics
-- Full admin CRUD with search, filter, export, and bulk actions
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 20+
-- pnpm 10+
-- Docker & Docker Compose
-
-### Setup
+## Quick Start (MERN)
 
 ```bash
-# Start infrastructure
-docker compose up -d
+# Start MongoDB + Redis
+docker compose -f docker/docker-compose.yml up -d mongodb redis
 
-# Install dependencies
-pnpm install
+# Backend
+cd backend && npm install && npm run seed && npm run dev
 
-# Environment files are pre-created at apps/api/.env and apps/web/.env.local
-# Edit apps/api/.env and add your Stripe keys
-
-# Database setup (MongoDB)
-pnpm db:generate
-pnpm db:push
-pnpm db:seed
-
-# Start development servers
-pnpm dev
+# Frontend (new terminal)
+cd frontend && npm install && npm run dev
 ```
 
-- **Web:** http://localhost:3000
-- **API:** http://localhost:3001
-- **API Docs:** http://localhost:3001/api/docs
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:5000/api/health
 
-### Demo Accounts
+## Demo Accounts
 
 | Role | Email | Password |
 |------|-------|----------|
-| Super Admin | admin@footballclub.example | Admin123! |
-| Community Seller | seller@footballclub.example | Seller123! |
-| User | user@footballclub.example | User123! |
+| Super Admin | admin@sffootballclub.example | Admin123! |
+| User | user@sffootballclub.example | User123! |
 
-## Project Structure
+## Core Business Rules
 
+- **1000** tickets per round
+- **800** tickets required before draw
+- **10** winners with fixed prize pool percentages (25%, 20%, 15%... 3%)
+- Bulk discounts: 5+/10+/25+/50+/100 tickets
+- Cryptographically secure draw with audit hash
+- Auto-start new round after draw
+- Admin reward configuration (number of winners + amounts)
+
+## Environment Files
+
+Pre-filled (local only, gitignored):
+- `backend/.env` — MongoDB, JWT, Stripe, Redis
+- `frontend/.env` — API URL
+
+**Add your Stripe keys** in `backend/.env`:
 ```
-apps/
-  api/          # NestJS backend API
-  web/          # Next.js frontend
-docs/
-  SRS.md        # Software Requirements Specification
-packages/       # Shared packages (future)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-## API Modules
+## Implementation Status
 
-- Auth & RBAC
-- Users, Roles, Permissions
-- Raffles, Rounds, Prizes
-- Ticket Books & Tickets
-- Sales (Online & Offline)
-- Draws with Audit Reports
-- Wallet & Payments
-- Notifications & Templates
-- Reports & Analytics
-- Audit/Activity/Security Logs
-- Settings, Backups, Health
-
-## Security
-
-- JWT access + refresh tokens (httpOnly cookies)
-- RBAC with granular permissions
-- bcrypt password hashing
-- Helmet, CORS, rate limiting
-- Input validation and sanitization
-- Audit logs for privileged operations
-
-## Testing
-
-```bash
-pnpm test
-```
+See [IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md) for full feature audit (~48% complete, 270/563 items).
 
 ## Documentation
 
-See [docs/SRS.md](docs/SRS.md) for the complete Software Requirements Specification.
+- [docs/SRS.md](docs/SRS.md)
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md)

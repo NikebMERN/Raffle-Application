@@ -152,7 +152,7 @@ Every admin resource supports: Create, Read, Update, Delete, Search, Filter, Sor
 - `/api/notifications` — notification management
 - `/api/reports` — report generation
 - `/api/audit-logs` — audit trail
-- `/api/settings` — system settings
+- `/api/rewards` — admin reward configuration (winners count, amounts)
 - `/api/health` — system health
 
 ---

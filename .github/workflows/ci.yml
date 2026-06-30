@@ -11,16 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      postgres:
-        image: postgres:16-alpine
+      mongodb:
+        image: mongo:7
         env:
-          POSTGRES_USER: raffle
-          POSTGRES_PASSWORD: raffle_secret
-          POSTGRES_DB: raffle_db
+          MONGO_INITDB_ROOT_USERNAME: raffle
+          MONGO_INITDB_ROOT_PASSWORD: raffle_secret
         ports:
-          - 5432:5432
+          - 27017:27017
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "mongosh --eval \"db.adminCommand('ping')\""
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -45,13 +44,13 @@ jobs:
       - name: Setup API env
         run: |
           cp apps/api/.env.example apps/api/.env
-          echo "DATABASE_URL=postgresql://raffle:raffle_secret@localhost:5432/raffle_db?schema=public" >> apps/api/.env
+          echo 'MONGODB_URI="mongodb://raffle:raffle_secret@localhost:27017/raffle_db?authSource=admin"' >> apps/api/.env
 
       - name: Generate Prisma client
         run: pnpm db:generate
 
-      - name: Run migrations
-        run: cd apps/api && npx prisma migrate deploy
+      - name: Push MongoDB schema
+        run: pnpm db:push
 
       - name: Seed database
         run: pnpm db:seed

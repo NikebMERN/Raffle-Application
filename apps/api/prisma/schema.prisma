@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
 }
 
 enum RaffleStatus {
@@ -81,7 +81,7 @@ enum PermissionAction {
 }
 
 model User {
-  id            String    @id @default(uuid())
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
   email         String    @unique
   passwordHash  String
   firstName     String
@@ -112,7 +112,7 @@ model User {
 }
 
 model Role {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String   @unique
   code        String   @unique
   description String?
@@ -125,10 +125,10 @@ model Role {
 }
 
 model Permission {
-  id       String           @id @default(uuid())
-  module   String
-  action   PermissionAction
-  createdAt DateTime        @default(now())
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  module    String
+  action    PermissionAction
+  createdAt DateTime         @default(now())
 
   roles RolePermission[]
 
@@ -137,30 +137,32 @@ model Permission {
 }
 
 model UserRole {
-  userId String
-  roleId String
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  roleId String @db.ObjectId
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@id([userId, roleId])
+  @@unique([userId, roleId])
   @@map("user_roles")
 }
 
 model RolePermission {
-  roleId       String
-  permissionId String
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  roleId       String @db.ObjectId
+  permissionId String @db.ObjectId
 
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
-  @@id([roleId, permissionId])
+  @@unique([roleId, permissionId])
   @@map("role_permissions")
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
-  userId    String   @unique
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -171,11 +173,11 @@ model PasswordResetToken {
 }
 
 model Raffle {
-  id                String       @id @default(uuid())
+  id                String       @id @default(auto()) @map("_id") @db.ObjectId
   title             String
   description       String?
   status            RaffleStatus @default(DRAFT)
-  ticketPrice       Decimal      @db.Decimal(10, 2)
+  ticketPrice       Float
   maxTicketsPerUser Int          @default(10)
   startDate         DateTime?
   endDate           DateTime?
@@ -183,16 +185,17 @@ model Raffle {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  rounds      RaffleRound[]
-  ticketBooks TicketBook[]
-  tickets     Ticket[]
+  rounds             RaffleRound[]
+  ticketBooks        TicketBook[]
+  tickets            Ticket[]
+  rewardConfigurations RewardConfiguration[]
 
   @@map("raffles")
 }
 
 model RaffleRound {
-  id          String      @id @default(uuid())
-  raffleId    String
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  raffleId    String      @db.ObjectId
   roundNumber Int
   title       String
   drawDate    DateTime?
@@ -200,21 +203,22 @@ model RaffleRound {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  raffle  Raffle  @relation(fields: [raffleId], references: [id], onDelete: Cascade)
-  prizes  Prize[]
-  tickets Ticket[]
-  draws   Draw[]
+  raffle               Raffle                @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  prizes               Prize[]
+  tickets              Ticket[]
+  draws                Draw[]
+  rewardConfigurations RewardConfiguration[]
 
   @@unique([raffleId, roundNumber])
   @@map("raffle_rounds")
 }
 
 model Prize {
-  id          String  @id @default(uuid())
-  roundId     String
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  roundId     String  @db.ObjectId
   name        String
   description String?
-  value       Decimal @db.Decimal(10, 2)
+  value       Float
   position    Int
   imageUrl    String?
 
@@ -224,11 +228,31 @@ model Prize {
   @@map("prizes")
 }
 
+/// Admin-controlled reward setup: number of winners and per-person reward amounts
+model RewardConfiguration {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  raffleId        String?  @db.ObjectId
+  roundId         String?  @db.ObjectId
+  numberOfWinners Int
+  totalRewardPool Float    @default(0)
+  /// [{ position, name, amount, winnersCount, description }]
+  rewards         Json
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  raffle Raffle?      @relation(fields: [raffleId], references: [id])
+  round  RaffleRound? @relation(fields: [roundId], references: [id])
+
+  @@map("reward_configurations")
+}
+
 model TicketBook {
-  id                String     @id @default(uuid())
-  raffleId          String
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  raffleId          String     @db.ObjectId
   bookNumber        String
-  sellerId          String?
+  sellerId          String?    @db.ObjectId
   startTicketNumber Int
   endTicketNumber   Int
   status            BookStatus @default(AVAILABLE)
@@ -245,17 +269,17 @@ model TicketBook {
 }
 
 model Ticket {
-  id           String       @id @default(uuid())
-  raffleId     String
-  roundId      String?
-  bookId       String?
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  raffleId     String       @db.ObjectId
+  roundId      String?      @db.ObjectId
+  bookId       String?      @db.ObjectId
   ticketNumber Int
   status       TicketStatus @default(UNSOLD)
   saleChannel  SaleChannel?
-  buyerId      String?
-  sellerId     String?
+  buyerId      String?      @db.ObjectId
+  sellerId     String?      @db.ObjectId
   soldAt       DateTime?
-  price        Decimal?     @db.Decimal(10, 2)
+  price        Float?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -272,13 +296,13 @@ model Ticket {
 }
 
 model Sale {
-  id        String      @id @default(uuid())
-  ticketId  String      @unique
-  userId    String?
-  sellerId  String?
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId  String      @unique @db.ObjectId
+  userId    String?     @db.ObjectId
+  sellerId  String?     @db.ObjectId
   channel   SaleChannel
-  amount    Decimal     @db.Decimal(10, 2)
-  paymentId String?
+  amount    Float
+  paymentId String?     @db.ObjectId
   createdAt DateTime    @default(now())
 
   ticket  Ticket   @relation(fields: [ticketId], references: [id])
@@ -290,13 +314,13 @@ model Sale {
 }
 
 model Draw {
-  id              String   @id @default(uuid())
-  roundId         String
-  prizeId         String
-  winnerTicketId  String
-  drawnAt         DateTime @default(now())
-  drawnById       String
-  method          String   @default("CRYPTO_RANDOM")
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  roundId          String   @db.ObjectId
+  prizeId          String   @db.ObjectId
+  winnerTicketId   String   @db.ObjectId
+  drawnAt          DateTime @default(now())
+  drawnById        String   @db.ObjectId
+  method           String   @default("CRYPTO_RANDOM")
   participantCount Int
 
   round        RaffleRound     @relation(fields: [roundId], references: [id])
@@ -309,8 +333,8 @@ model Draw {
 }
 
 model DrawAuditReport {
-  id              String   @id @default(uuid())
-  drawId          String   @unique
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  drawId          String   @unique @db.ObjectId
   participantHash String
   rngMethod       String
   timestamp       DateTime @default(now())
@@ -323,9 +347,9 @@ model DrawAuditReport {
 }
 
 model Wallet {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  balance   Decimal  @default(0) @db.Decimal(12, 2)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  balance   Float    @default(0)
   currency  String   @default("GBP")
   updatedAt DateTime @updatedAt
 
@@ -336,11 +360,11 @@ model Wallet {
 }
 
 model WalletTransaction {
-  id           String          @id @default(uuid())
-  walletId     String
+  id           String          @id @default(auto()) @map("_id") @db.ObjectId
+  walletId     String          @db.ObjectId
   type         TransactionType
-  amount       Decimal         @db.Decimal(12, 2)
-  balanceAfter Decimal         @db.Decimal(12, 2)
+  amount       Float
+  balanceAfter Float
   reference    String?
   description  String?
   createdAt    DateTime        @default(now())
@@ -351,11 +375,11 @@ model WalletTransaction {
 }
 
 model Payment {
-  id                    String        @id @default(uuid())
-  userId                String
+  id                    String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String        @db.ObjectId
   stripeSessionId       String?       @unique
   stripePaymentIntentId String?
-  amount                Decimal       @db.Decimal(10, 2)
+  amount                Float
   status                PaymentStatus @default(PENDING)
   metadata              Json?
   createdAt             DateTime      @default(now())
@@ -368,7 +392,7 @@ model Payment {
 }
 
 model NotificationTemplate {
-  id        String              @id @default(uuid())
+  id        String              @id @default(auto()) @map("_id") @db.ObjectId
   name      String              @unique
   channel   NotificationChannel
   subject   String?
@@ -383,9 +407,9 @@ model NotificationTemplate {
 }
 
 model Notification {
-  id         String              @id @default(uuid())
-  userId     String
-  templateId String?
+  id         String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String              @db.ObjectId
+  templateId String?             @db.ObjectId
   channel    NotificationChannel
   title      String
   body       String
@@ -400,8 +424,8 @@ model Notification {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String?
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String?  @db.ObjectId
   action    String
   entity    String
   entityId  String?
@@ -418,8 +442,8 @@ model AuditLog {
 }
 
 model ActivityLog {
-  id        String   @id @default(uuid())
-  userId    String?
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String?  @db.ObjectId
   action    String
   details   Json?
   createdAt DateTime @default(now())
@@ -431,9 +455,9 @@ model ActivityLog {
 }
 
 model SecurityLog {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   event     String
-  userId    String?
+  userId    String?  @db.ObjectId
   ipAddress String?
   userAgent String?
   details   Json?
@@ -446,7 +470,7 @@ model SecurityLog {
 }
 
 model SystemSetting {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   key         String   @unique
   value       String
   description String?
@@ -456,7 +480,7 @@ model SystemSetting {
 }
 
 model Backup {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   filename  String
   size      Int?
   status    String   @default("COMPLETED")
@@ -466,12 +490,12 @@ model Backup {
 }
 
 model StripeEvent {
-  id          String   @id @default(uuid())
-  eventId     String   @unique
-  type        String
-  processed   Boolean  @default(false)
-  payload     Json
-  createdAt   DateTime @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  eventId   String   @unique
+  type      String
+  processed Boolean  @default(false)
+  payload   Json
+  createdAt DateTime @default(now())
 
   @@map("stripe_events")
 }

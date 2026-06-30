@@ -7,7 +7,7 @@
     "lint": "turbo lint",
     "test": "turbo test",
     "db:generate": "pnpm --filter @raffle/api db:generate",
-    "db:migrate": "pnpm --filter @raffle/api db:migrate",
+    "db:push": "pnpm --filter @raffle/api db:push",
     "db:seed": "pnpm --filter @raffle/api db:seed",
     "db:studio": "pnpm --filter @raffle/api db:studio"
   },

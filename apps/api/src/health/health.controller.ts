@@ -28,10 +28,15 @@ export class HealthController {
     const checks: Record<string, string> = {};
 
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.prisma.$runCommandRaw({ ping: 1 });
       checks.database = 'healthy';
     } catch {
-      checks.database = 'unhealthy';
+      try {
+        await this.prisma.user.findFirst({ take: 1 });
+        checks.database = 'healthy';
+      } catch {
+        checks.database = 'unhealthy';
+      }
     }
 
     if (this.redis) {

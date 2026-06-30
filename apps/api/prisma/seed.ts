@@ -12,7 +12,7 @@ const ROLES = [
 
 const MODULES = [
   'users', 'roles', 'permissions', 'sellers', 'ticket_books', 'tickets',
-  'raffles', 'rounds', 'prizes', 'draws', 'winners', 'sales',
+  'raffles', 'rounds', 'prizes', 'draws', 'winners', 'sales', 'rewards',
   'wallet', 'payments', 'notifications', 'templates', 'reports',
   'audit_logs', 'activity_logs', 'security_logs', 'settings', 'backups',
 ];
@@ -20,9 +20,8 @@ const MODULES = [
 const ACTIONS = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'BULK_ACTION', 'DRAW', 'SETTLE'] as const;
 
 async function main() {
-  console.log('Seeding database...');
+  console.log('Seeding MongoDB database...');
 
-  // Create permissions
   const permissions = [];
   for (const module of MODULES) {
     for (const action of ACTIONS) {
@@ -35,7 +34,6 @@ async function main() {
     }
   }
 
-  // Create roles with permissions
   for (const roleData of ROLES) {
     const role = await prisma.role.upsert({
       where: { code: roleData.code },
@@ -48,7 +46,7 @@ async function main() {
         ? permissions
         : roleData.code === 'FINANCE'
           ? permissions.filter((p) =>
-              ['wallet', 'payments', 'reports', 'sales', 'sellers', 'audit_logs'].includes(p.module) &&
+              ['wallet', 'payments', 'reports', 'sales', 'sellers', 'rewards', 'audit_logs'].includes(p.module) &&
               ['READ', 'EXPORT', 'SETTLE'].includes(p.action),
             )
           : roleData.code === 'COMMUNITY_SELLER'
@@ -70,7 +68,6 @@ async function main() {
     }
   }
 
-  // Create super admin user
   const adminRole = await prisma.role.findUnique({ where: { code: 'SUPER_ADMIN' } });
   const passwordHash = await bcrypt.hash('Admin123!', 12);
 
@@ -88,7 +85,6 @@ async function main() {
     },
   });
 
-  // Create demo seller
   const sellerRole = await prisma.role.findUnique({ where: { code: 'COMMUNITY_SELLER' } });
   const seller = await prisma.user.upsert({
     where: { email: 'seller@footballclub.example' },
@@ -104,7 +100,6 @@ async function main() {
     },
   });
 
-  // Create demo user
   const userRole = await prisma.role.findUnique({ where: { code: 'USER' } });
   await prisma.user.upsert({
     where: { email: 'user@footballclub.example' },
@@ -120,7 +115,6 @@ async function main() {
     },
   });
 
-  // System settings
   const settings = [
     { key: 'commission_rate', value: '0.10', description: 'Seller commission rate' },
     { key: 'club_name', value: 'Football Club Community', description: 'Club name' },
@@ -138,7 +132,6 @@ async function main() {
     });
   }
 
-  // Notification templates
   const templates = [
     {
       name: 'ticket_purchased',
@@ -171,94 +164,126 @@ async function main() {
     });
   }
 
-  // Demo raffle
-  const raffle = await prisma.raffle.upsert({
-    where: { id: 'demo-raffle-001' },
-    update: {},
-    create: {
-      id: 'demo-raffle-001',
-      title: 'Season Finale Grand Draw',
-      description: 'Win amazing prizes in our season finale community raffle!',
-      status: 'ACTIVE',
-      ticketPrice: 5.0,
-      maxTicketsPerUser: 10,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-  });
-
-  const round = await prisma.raffleRound.upsert({
-    where: { raffleId_roundNumber: { raffleId: raffle.id, roundNumber: 1 } },
-    update: {},
-    create: {
-      raffleId: raffle.id,
-      roundNumber: 1,
-      title: 'Round 1 - Main Prize',
-      status: 'OPEN',
-      drawDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
-    },
-  });
-
-  await prisma.prize.upsert({
-    where: { id: 'demo-prize-001' },
-    update: {},
-    create: {
-      id: 'demo-prize-001',
-      roundId: round.id,
-      name: 'Signed Football Shirt',
-      description: 'Official signed shirt from the first team',
-      value: 150.0,
-      position: 1,
-    },
-  });
-
-  // Create ticket book for seller
-  const book = await prisma.ticketBook.upsert({
-    where: { raffleId_bookNumber: { raffleId: raffle.id, bookNumber: 'BOOK-001' } },
-    update: {},
-    create: {
-      raffleId: raffle.id,
-      bookNumber: 'BOOK-001',
-      sellerId: seller.id,
-      startTicketNumber: 1,
-      endTicketNumber: 50,
-      status: 'ASSIGNED',
-      assignedAt: new Date(),
-    },
-  });
-
-  // Create tickets for the book
-  for (let i = 1; i <= 50; i++) {
-    await prisma.ticket.upsert({
-      where: { raffleId_ticketNumber: { raffleId: raffle.id, ticketNumber: i } },
-      update: {},
-      create: {
-        raffleId: raffle.id,
-        roundId: round.id,
-        bookId: book.id,
-        ticketNumber: i,
-        status: 'ASSIGNED',
+  let raffle = await prisma.raffle.findFirst({ where: { title: 'Season Finale Grand Draw' } });
+  if (!raffle) {
+    raffle = await prisma.raffle.create({
+      data: {
+        title: 'Season Finale Grand Draw',
+        description: 'Win amazing prizes in our season finale community raffle!',
+        status: 'ACTIVE',
+        ticketPrice: 5.0,
+        maxTicketsPerUser: 10,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
   }
 
-  // Online tickets 51-100
-  for (let i = 51; i <= 100; i++) {
-    await prisma.ticket.upsert({
-      where: { raffleId_ticketNumber: { raffleId: raffle.id, ticketNumber: i } },
-      update: {},
-      create: {
+  let round = await prisma.raffleRound.findFirst({
+    where: { raffleId: raffle.id, roundNumber: 1 },
+  });
+  if (!round) {
+    round = await prisma.raffleRound.create({
+      data: {
         raffleId: raffle.id,
-        roundId: round.id,
-        ticketNumber: i,
-        status: 'UNSOLD',
+        roundNumber: 1,
+        title: 'Round 1 - Main Prize',
+        status: 'OPEN',
+        drawDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
       },
     });
+  }
+
+  const existingPrize = await prisma.prize.findFirst({ where: { roundId: round.id, position: 1 } });
+  if (!existingPrize) {
+    await prisma.prize.create({
+      data: {
+        roundId: round.id,
+        name: 'Signed Football Shirt',
+        description: 'Official signed shirt from the first team',
+        value: 150.0,
+        position: 1,
+      },
+    });
+  }
+
+  const existingReward = await prisma.rewardConfiguration.findFirst({
+    where: { name: 'Season Finale Reward Pool' },
+  });
+  if (!existingReward) {
+    await prisma.rewardConfiguration.create({
+      data: {
+        name: 'Season Finale Reward Pool',
+        raffleId: raffle.id,
+        roundId: round.id,
+        numberOfWinners: 3,
+        totalRewardPool: 350,
+        isActive: true,
+        rewards: [
+          { position: 1, name: '1st Prize - Signed Shirt', amount: 150, winnersCount: 1, description: 'First place winner' },
+          { position: 2, name: '2nd Prize - Match Tickets', amount: 100, winnersCount: 1, description: 'Second place winner' },
+          { position: 3, name: '3rd Prize - Club Merchandise', amount: 100, winnersCount: 1, description: 'Third place winner' },
+        ],
+      },
+    });
+  }
+
+  let book = await prisma.ticketBook.findFirst({
+    where: { raffleId: raffle.id, bookNumber: 'BOOK-001' },
+  });
+  if (!book) {
+    book = await prisma.ticketBook.create({
+      data: {
+        raffleId: raffle.id,
+        bookNumber: 'BOOK-001',
+        sellerId: seller.id,
+        startTicketNumber: 1,
+        endTicketNumber: 50,
+        status: 'ASSIGNED',
+        assignedAt: new Date(),
+      },
+    });
+  }
+
+  for (let i = 1; i <= 50; i++) {
+    const existing = await prisma.ticket.findFirst({
+      where: { raffleId: raffle.id, ticketNumber: i },
+    });
+    if (!existing) {
+      await prisma.ticket.create({
+        data: {
+          raffleId: raffle.id,
+          roundId: round.id,
+          bookId: book.id,
+          ticketNumber: i,
+          status: 'ASSIGNED',
+          sellerId: seller.id,
+        },
+      });
+    }
+  }
+
+  for (let i = 51; i <= 100; i++) {
+    const existing = await prisma.ticket.findFirst({
+      where: { raffleId: raffle.id, ticketNumber: i },
+    });
+    if (!existing) {
+      await prisma.ticket.create({
+        data: {
+          raffleId: raffle.id,
+          roundId: round.id,
+          ticketNumber: i,
+          status: 'UNSOLD',
+        },
+      });
+    }
   }
 
   console.log('Seed complete!');
   console.log('Admin:', admin.email, '/ Admin123!');
   console.log('Seller:', seller.email, '/ Seller123!');
+  console.log('Raffle ID:', raffle.id);
+  console.log('Round ID:', round.id);
 }
 
 main()

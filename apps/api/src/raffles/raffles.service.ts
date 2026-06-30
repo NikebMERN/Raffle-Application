@@ -19,8 +19,8 @@ export class RafflesService {
     if (query.status) where.status = query.status as RaffleStatus;
     if (query.search) {
       where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { description: { contains: query.search, mode: 'insensitive' } },
+        { title: { contains: query.search } },
+        { description: { contains: query.search } },
       ];
     }
 

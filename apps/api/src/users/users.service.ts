@@ -12,9 +12,9 @@ export class UsersService {
     const where: Prisma.UserWhereInput = query.search
       ? {
           OR: [
-            { email: { contains: query.search, mode: 'insensitive' } },
-            { firstName: { contains: query.search, mode: 'insensitive' } },
-            { lastName: { contains: query.search, mode: 'insensitive' } },
+            { email: { contains: query.search } },
+            { firstName: { contains: query.search } },
+            { lastName: { contains: query.search } },
           ],
         }
       : {};

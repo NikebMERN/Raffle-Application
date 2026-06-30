@@ -12,6 +12,7 @@ const navItems = [
   { href: '/admin/tickets', label: 'Tickets' },
   { href: '/admin/sales', label: 'Sales' },
   { href: '/admin/draws', label: 'Draws' },
+  { href: '/admin/rewards', label: 'Rewards' },
   { href: '/admin/wallet', label: 'Wallet' },
   { href: '/admin/payments', label: 'Payments' },
   { href: '/admin/notifications', label: 'Notifications' },

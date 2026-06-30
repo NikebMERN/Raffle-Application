@@ -1,16 +1,16 @@
 services:
-  postgres:
-    image: postgres:16-alpine
+  mongodb:
+    image: mongo:7
     environment:
-      POSTGRES_USER: raffle
-      POSTGRES_PASSWORD: raffle_secret
-      POSTGRES_DB: raffle_db
+      MONGO_INITDB_ROOT_USERNAME: raffle
+      MONGO_INITDB_ROOT_PASSWORD: raffle_secret
+      MONGO_INITDB_DATABASE: raffle_db
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U raffle -d raffle_db"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -38,5 +38,5 @@ services:
       - minio_data:/data
 
 volumes:
-  postgres_data:
+  mongodb_data:
   minio_data:

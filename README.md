@@ -4,9 +4,9 @@ Production-ready full-stack web application for managing football club community
 
 ## Tech Stack
 
-- **Frontend:** Next.js 15, TypeScript, Tailwind CSS
+- **Frontend:** Next.js 15, React, TypeScript, Tailwind CSS
 - **Backend:** NestJS, TypeScript, Prisma ORM
-- **Database:** PostgreSQL
+- **Database:** **MongoDB** (MERN data layer)
 - **Cache:** Redis
 - **Payments:** Stripe
 - **Monorepo:** Turborepo + pnpm
@@ -37,13 +37,12 @@ docker compose up -d
 # Install dependencies
 pnpm install
 
-# Configure environment
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env.local
+# Environment files are pre-created at apps/api/.env and apps/web/.env.local
+# Edit apps/api/.env and add your Stripe keys
 
-# Database setup
+# Database setup (MongoDB)
 pnpm db:generate
-cd apps/api && npx prisma migrate dev --name init
+pnpm db:push
 pnpm db:seed
 
 # Start development servers

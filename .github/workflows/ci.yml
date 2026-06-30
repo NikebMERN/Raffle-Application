@@ -13,29 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
-      - run: pnpm install
+      - name: Install backend
+        run: cd backend && npm install
 
-      - name: Setup API env
-        run: cp apps/api/.env.example apps/api/.env
+      - name: Run backend tests
+        run: cd backend && npm test
 
-      - name: Generate Prisma client
-        run: pnpm db:generate
+      - name: Install frontend
+        run: cd frontend && npm install
 
-      - name: Run API tests
-        run: pnpm --filter @raffle/api test
-
-      - name: Build API
-        run: pnpm --filter @raffle/api build
-
-      - name: Build Web
-        run: pnpm --filter @raffle/web build
+      - name: Build frontend
+        run: cd frontend && npm run build
         env:
-          API_URL: http://localhost:3001
-          NEXT_PUBLIC_API_URL: http://localhost:3001
+          VITE_API_URL: http://localhost:5000

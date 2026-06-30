@@ -1,13 +1,8 @@
-const Raffle = require('../models/Raffle');
-const Ticket = require('../models/Ticket');
-const { RAFFLE_STATUS, DEFAULTS } = require('../utils/constants');
+const rafflesRepo = require('../repositories/rafflesRepo');
+const ticketsRepo = require('../repositories/ticketsRepo');
+const auditLogsRepo = require('../repositories/auditLogsRepo');
+const { RAFFLE_STATUS } = require('../utils/constants');
 const { paginate, paginatedResponse } = require('../utils/helpers');
-const AuditLog = require('../models/AuditLog');
-
-async function getNextRoundNumber() {
-  const last = await Raffle.findOne().sort({ roundNumber: -1 });
-  return (last?.roundNumber || 0) + 1;
-}
 
 async function createRaffle(data, userId) {
   if (data.requiredSold > data.totalTickets) {
@@ -17,59 +12,57 @@ async function createRaffle(data, userId) {
     throw Object.assign(new Error('Winners count cannot exceed required sold'), { status: 400 });
   }
 
-  const roundNumber = await getNextRoundNumber();
+  const roundNumber = await rafflesRepo.getNextRoundNumber();
   const prizePool = data.prizePool ?? data.totalTickets * data.ticketPrice * 0.5;
 
-  const raffle = await Raffle.create({
+  const raffle = await rafflesRepo.create({
     ...data,
+    startDate: data.startDate ? new Date(data.startDate) : new Date(),
+    endDate: data.endDate ? new Date(data.endDate) : null,
     roundNumber,
     prizePool,
+    soldCount: 0,
+    revenue: 0,
+    winners: [],
     status: RAFFLE_STATUS.DRAFT,
     createdBy: userId,
   });
 
-  const tickets = [];
-  for (let i = 1; i <= data.totalTickets; i++) {
-    tickets.push({ raffleId: raffle._id, ticketNumber: i });
-  }
-  await Ticket.insertMany(tickets);
-
-  await AuditLog.create({ userId, action: 'CREATE_RAFFLE', entity: 'raffle', entityId: raffle._id, newValue: raffle });
+  await ticketsRepo.createForRaffle(raffle.id, data.totalTickets);
+  await auditLogsRepo.record({ userId, action: 'CREATE_RAFFLE', entity: 'raffle', entityId: raffle.id });
   return raffle;
 }
 
 async function publishRaffle(id, userId) {
-  const raffle = await Raffle.findByIdAndUpdate(
-    id,
-    { status: RAFFLE_STATUS.ACTIVE },
-    { new: true },
-  );
+  const raffle = await rafflesRepo.getById(id);
   if (!raffle) throw Object.assign(new Error('Raffle not found'), { status: 404 });
-  await AuditLog.create({ userId, action: 'PUBLISH_RAFFLE', entity: 'raffle', entityId: id });
-  return raffle;
+  const updated = await rafflesRepo.update(id, { status: RAFFLE_STATUS.ACTIVE });
+  await auditLogsRepo.record({ userId, action: 'PUBLISH_RAFFLE', entity: 'raffle', entityId: id });
+  return updated;
 }
 
 async function listRaffles(query, activeOnly = false) {
   const { page, limit, skip } = paginate(query);
-  const filter = activeOnly ? { status: RAFFLE_STATUS.ACTIVE } : {};
-  if (query.status) filter.status = query.status;
+  const filters = [];
+  if (activeOnly) filters.push(['status', '==', RAFFLE_STATUS.ACTIVE]);
+  else if (query.status) filters.push(['status', '==', query.status]);
 
   const [data, total] = await Promise.all([
-    Raffle.find(filter).sort({ roundNumber: -1 }).skip(skip).limit(limit),
-    Raffle.countDocuments(filter),
+    rafflesRepo.find({ filters, orderBy: ['roundNumber', 'desc'], limit, offset: skip }),
+    rafflesRepo.count(filters),
   ]);
 
   return paginatedResponse(data, total, page, limit);
 }
 
 async function getRaffle(id) {
-  const raffle = await Raffle.findById(id).populate('winners.userId', 'firstName lastName email');
+  const raffle = await rafflesRepo.getById(id);
   if (!raffle) throw Object.assign(new Error('Raffle not found'), { status: 404 });
   return raffle;
 }
 
 async function updateRaffle(id, data, userId) {
-  const raffle = await Raffle.findById(id);
+  const raffle = await rafflesRepo.getById(id);
   if (!raffle) throw Object.assign(new Error('Raffle not found'), { status: 404 });
   if (raffle.status === RAFFLE_STATUS.COMPLETED) {
     throw Object.assign(new Error('Completed raffle cannot be modified'), { status: 400 });
@@ -80,17 +73,19 @@ async function updateRaffle(id, data, userId) {
       if (!allowed.includes(k)) delete data[k];
     });
   }
+  if (data.endDate) data.endDate = new Date(data.endDate);
 
-  const updated = await Raffle.findByIdAndUpdate(id, data, { new: true });
-  await AuditLog.create({ userId, action: 'UPDATE_RAFFLE', entity: 'raffle', entityId: id, newValue: data });
+  const updated = await rafflesRepo.update(id, data);
+  await auditLogsRepo.record({ userId, action: 'UPDATE_RAFFLE', entity: 'raffle', entityId: id, newValue: data });
   return updated;
 }
 
 async function cancelRaffle(id, userId) {
-  const raffle = await Raffle.findByIdAndUpdate(id, { status: RAFFLE_STATUS.CANCELLED }, { new: true });
+  const raffle = await rafflesRepo.getById(id);
   if (!raffle) throw Object.assign(new Error('Raffle not found'), { status: 404 });
-  await AuditLog.create({ userId, action: 'CANCEL_RAFFLE', entity: 'raffle', entityId: id });
-  return raffle;
+  const updated = await rafflesRepo.update(id, { status: RAFFLE_STATUS.CANCELLED });
+  await auditLogsRepo.record({ userId, action: 'CANCEL_RAFFLE', entity: 'raffle', entityId: id });
+  return updated;
 }
 
 module.exports = {

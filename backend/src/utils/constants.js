@@ -33,6 +33,20 @@ module.exports = {
     REFUNDED: 'refunded',
   },
 
+  WALLET_TX: {
+    DEPOSIT: 'deposit',
+    WITHDRAWAL: 'withdrawal',
+    TRANSFER_IN: 'transfer_in',
+    TRANSFER_OUT: 'transfer_out',
+    PURCHASE: 'purchase',
+    REFUND: 'refund',
+  },
+
+  WALLET_LIMITS: {
+    MIN_AMOUNT: 1,
+    MAX_AMOUNT: 10000,
+  },
+
   DEFAULTS: {
     TOTAL_TICKETS: 1000,
     REQUIRED_SOLD: 800,
@@ -41,9 +55,6 @@ module.exports = {
     MAX_TICKETS_PER_USER: 100,
     RESERVE_TIMEOUT_MS: 5 * 60 * 1000,
     CLAIM_DEADLINE_DAYS: 30,
-    BCRYPT_ROUNDS: 12,
-    MAX_LOGIN_ATTEMPTS: 5,
-    LOCKOUT_MINUTES: 15,
   },
 
   PRIZE_DISTRIBUTION: [

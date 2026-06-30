@@ -1,67 +1,67 @@
-# SF Football Club Community Raffle
+# Football Club Community Raffle
 
-Production-ready MERN stack raffle platform for SF Football Club.
+Production-ready raffle platform. React + Express, **Firebase Authentication (Google sign-in)** and **Cloud Firestore** as the database.
 
-## Stacks
+## Stack
 
 | Layer | Path | Technology |
 |-------|------|------------|
-| **Backend (primary)** | `/backend` | Express.js, MongoDB, Mongoose, Socket.io, Redis |
-| **Frontend (primary)** | `/frontend` | React, Vite, Redux Toolkit, Tailwind CSS |
-| **Legacy API** | `/apps/api` | NestJS + Prisma (MongoDB) |
-| **Legacy Web** | `/apps/web` | Next.js 15 |
+| **Frontend** | `/frontend` | React, Vite, Redux Toolkit, Tailwind CSS, Firebase Web SDK |
+| **Backend** | `/backend` | Express.js, Firebase Admin SDK (Firestore + Auth), Socket.io |
+| **Auth** | — | Google Sign-In via Firebase (ID tokens verified server-side) |
+| **Database** | — | Cloud Firestore |
+| **Payments** | — | Stripe (optional; demo mode without keys) |
 
-## Quick Start (MERN)
+## Quick start
 
 ```bash
-# Start MongoDB + Redis
-docker compose -f docker/docker-compose.yml up -d mongodb redis
-
-# Backend
-cd backend && npm install && npm run seed && npm run dev
-
-# Frontend (new terminal)
-cd frontend && npm install && npm run dev
+# From the repo root — creates .env files, installs deps, seeds, and runs both apps
+npm start
 ```
 
 - **Frontend:** http://localhost:3000
 - **Backend API:** http://localhost:5000/api/health
 
-## Demo Accounts
+You must fill in your Firebase credentials first (see below), then run `npm start` again.
 
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | admin@sffootballclub.example | Admin123! |
-| User | user@sffootballclub.example | User123! |
+## Setup: Firebase
 
-## Core Business Rules
+1. Create a project at https://console.firebase.google.com.
+2. **Authentication → Sign-in method →** enable **Google**.
+3. **Firestore Database → Create database** (production or test mode).
+4. **Backend credentials:** Project settings → **Service accounts** → *Generate new private key*. Put `project_id`, `client_email`, and `private_key` into `backend/.env` (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`).
+5. **Frontend credentials:** Project settings → **General → Your apps → Web app** → copy the SDK config into `frontend/.env` (`VITE_FIREBASE_*`).
+6. Add your Google email to `ADMIN_EMAILS` in `backend/.env` — that account becomes `super_admin` on first sign-in.
+7. (Optional) Web Push: Project settings → **Cloud Messaging → Web Push certificates** → put the key pair value in `VITE_FIREBASE_VAPID_KEY`.
 
-- **1000** tickets per round
-- **800** tickets required before draw
-- **10** winners with fixed prize pool percentages (25%, 20%, 15%... 3%)
+## Roles
+
+`user`, `community_seller`, `finance`, `admin`, `super_admin`. The **first** admin is bootstrapped via `ADMIN_EMAILS`; every subsequent role change is done from the admin **Users** page (no env edits or scripts).
+
+## Configuration (dynamic)
+
+On first start the backend auto-creates default settings, the opening round and a reward config — there is no required seed step. Club name, ticket price, total tickets, required-sold threshold, winners count, max tickets per user, round length and bulk-discount tiers are all stored in Firestore and editable live from the admin **Settings** page. The backend reads these values at runtime, so changes take effect on the next round/purchase without redeploying. The public site reads branding via `GET /api/v1/config`.
+
+## Core business rules
+
+- 1000 tickets per round, 800 required before a draw
+- 10 winners with fixed prize-pool percentages (25%, 20%, 15% … 3%)
 - Bulk discounts: 5+/10+/25+/50+/100 tickets
-- Cryptographically secure draw with audit hash
-- Auto-start new round after draw
-- Admin reward configuration (number of winners + amounts)
+- Cryptographically secure draw with an audit hash
+- Firestore transaction draw-lock prevents concurrent draws
+- Auto-starts a new round after each draw
 
-## Environment Files
+## Scripts
 
-Pre-filled (local only, gitignored):
-- `backend/.env` — MongoDB, JWT, Stripe, Redis
-- `frontend/.env` — API URL
-
-**Add your Stripe keys** in `backend/.env`:
-```
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-```
-
-## Implementation Status
-
-See [IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md) for full feature audit (~48% complete, 270/563 items).
+| Command | Description |
+|---------|-------------|
+| `npm start` | Bootstrap + run everything |
+| `npm run dev` | Run backend + frontend (deps already installed) |
+| `npm run seed` | Optional — re-run Firestore bootstrap (settings, round 1, reward config). Runs automatically on backend start. |
+| `npm run build` | Build the frontend |
+| `npm test` | Backend unit tests |
 
 ## Documentation
 
 - [docs/SRS.md](docs/SRS.md)
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
-- [IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md)

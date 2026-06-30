@@ -20,6 +20,14 @@ spec:
           envFrom:
             - configMapRef:
                 name: sf-raffle-config
+            # Create with: kubectl create secret generic sf-raffle-secrets \
+            #   --from-literal=FIREBASE_PROJECT_ID=... \
+            #   --from-literal=FIREBASE_CLIENT_EMAIL=... \
+            #   --from-literal=FIREBASE_PRIVATE_KEY=... \
+            #   --from-literal=ADMIN_EMAILS=... \
+            #   --from-literal=STRIPE_SECRET_KEY=... --from-literal=STRIPE_WEBHOOK_SECRET=...
+            - secretRef:
+                name: sf-raffle-secrets
           livenessProbe:
             httpGet:
               path: /api/health

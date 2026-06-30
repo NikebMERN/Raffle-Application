@@ -5,5 +5,6 @@
   "display": "standalone",
   "background_color": "#1e40af",
   "theme_color": "#1e40af",
-  "description": "Community raffle for SF Football Club"
+  "description": "Community raffle for SF Football Club",
+  "gcm_sender_id": "103953800509"
 }

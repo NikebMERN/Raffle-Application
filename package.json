@@ -1,38 +1,22 @@
 {
-  "name": "sf-football-club-raffle",
+  "name": "football-club-raffle",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "start": "bash scripts/start.sh",
+    "dev": "npx concurrently -n backend,frontend,admin -c blue,green,magenta \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:admin\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "dev:api": "pnpm --filter @raffle/api dev",
-    "dev:web": "pnpm --filter @raffle/web dev",
-    "build": "turbo build",
+    "dev:admin": "cd admin && npm run dev",
+    "build": "cd frontend && npm run build && cd ../admin && npm run build",
     "build:frontend": "cd frontend && npm run build",
-    "test": "turbo test",
-    "test:backend": "cd backend && npm test",
+    "build:admin": "cd admin && npm run build",
+    "test": "cd backend && npm test",
     "seed": "cd backend && npm run seed",
-    "db:generate": "pnpm --filter @raffle/api db:generate",
-    "db:push": "pnpm --filter @raffle/api db:push",
-    "db:seed": "pnpm --filter @raffle/api db:seed",
-    "db:studio": "pnpm --filter @raffle/api db:studio"
+    "create-admin": "cd backend && node src/scripts/createAdmin.js",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install && cd ../admin && npm install"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
-    "turbo": "^2.3.3",
-    "typescript": "^5.7.2"
-  },
-  "packageManager": "pnpm@10.33.3",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@nestjs/core",
-      "@prisma/client",
-      "@prisma/engines",
-      "bcrypt",
-      "esbuild",
-      "prisma",
-      "sharp"
-    ]
+    "concurrently": "^9.1.2"
   },
   "engines": {
     "node": ">=20"

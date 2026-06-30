@@ -1,8 +1,9 @@
 const drawService = require('../services/drawService');
 const analyticsService = require('../services/analyticsService');
-const AuditLog = require('../models/AuditLog');
-const Settings = require('../models/Settings');
-const RewardConfig = require('../models/RewardConfig');
+const auditLogsRepo = require('../repositories/auditLogsRepo');
+const settingsRepo = require('../repositories/settingsRepo');
+const settingsService = require('../services/settingsService');
+const rewardConfigsRepo = require('../repositories/rewardConfigsRepo');
 const { paginate, paginatedResponse } = require('../utils/helpers');
 
 exports.overview = async (req, res, next) => {
@@ -16,7 +17,7 @@ exports.overview = async (req, res, next) => {
 exports.executeDraw = async (req, res, next) => {
   try {
     const io = req.app.get('io');
-    res.json(await drawService.executeDraw(req.params.raffleId, req.user._id, io));
+    res.json(await drawService.executeDraw(req.params.raffleId, req.user.id, io));
   } catch (err) {
     next(err);
   }
@@ -30,15 +31,23 @@ exports.reports = async (req, res, next) => {
   }
 };
 
+exports.ticketInventory = async (req, res, next) => {
+  try {
+    res.json(await analyticsService.getTicketInventory(req.query.raffleId));
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.auditLogs = async (req, res, next) => {
   try {
     const { page, limit, skip } = paginate(req.query);
-    const filter = {};
-    if (req.query.action) filter.action = req.query.action;
-    if (req.query.userId) filter.userId = req.query.userId;
+    const filters = [];
+    if (req.query.action) filters.push(['action', '==', req.query.action]);
+    if (req.query.userId) filters.push(['userId', '==', req.query.userId]);
     const [data, total] = await Promise.all([
-      AuditLog.find(filter).populate('userId', 'email firstName lastName').sort({ createdAt: -1 }).skip(skip).limit(limit),
-      AuditLog.countDocuments(filter),
+      auditLogsRepo.find({ filters, orderBy: ['createdAt', 'desc'], limit, offset: skip }),
+      auditLogsRepo.count(filters),
     ]);
     res.json(paginatedResponse(data, total, page, limit));
   } catch (err) {
@@ -46,9 +55,9 @@ exports.auditLogs = async (req, res, next) => {
   }
 };
 
-exports.getSettings = async (req, res, next) => {
+exports.getSettings = async (_req, res, next) => {
   try {
-    res.json(await Settings.find());
+    res.json(await settingsRepo.list());
   } catch (err) {
     next(err);
   }
@@ -56,11 +65,9 @@ exports.getSettings = async (req, res, next) => {
 
 exports.updateSetting = async (req, res, next) => {
   try {
-    const setting = await Settings.findOneAndUpdate(
-      { key: req.params.key },
-      { value: req.body.value, description: req.body.description },
-      { upsert: true, new: true },
-    );
+    const setting = await settingsRepo.upsert(req.params.key, req.body.value, req.body.description, req.body.category);
+    // Drop the cache so the new value is read on the very next request.
+    settingsService.invalidate();
     res.json(setting);
   } catch (err) {
     next(err);
@@ -71,8 +78,8 @@ exports.listRewards = async (req, res, next) => {
   try {
     const { page, limit, skip } = paginate(req.query);
     const [data, total] = await Promise.all([
-      RewardConfig.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
-      RewardConfig.countDocuments(),
+      rewardConfigsRepo.find({ orderBy: ['createdAt', 'desc'], limit, offset: skip }),
+      rewardConfigsRepo.count(),
     ]);
     res.json(paginatedResponse(data, total, page, limit));
   } catch (err) {
@@ -88,13 +95,14 @@ exports.createReward = async (req, res, next) => {
       return res.status(400).json({ message: 'Winners count must match tier slots' });
     }
     const totalRewardPool = rewards.reduce((s, r) => s + r.amount * r.winnersCount, 0);
-    const config = await RewardConfig.create({
+    const config = await rewardConfigsRepo.create({
       name,
       numberOfWinners,
       rewards,
-      raffleId,
+      raffleId: raffleId || null,
       totalRewardPool,
-      createdBy: req.user._id,
+      isActive: true,
+      createdBy: req.user.id,
     });
     res.status(201).json(config);
   } catch (err) {
@@ -104,8 +112,7 @@ exports.createReward = async (req, res, next) => {
 
 exports.updateReward = async (req, res, next) => {
   try {
-    const config = await RewardConfig.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(config);
+    res.json(await rewardConfigsRepo.update(req.params.id, req.body));
   } catch (err) {
     next(err);
   }
@@ -113,7 +120,7 @@ exports.updateReward = async (req, res, next) => {
 
 exports.deleteReward = async (req, res, next) => {
   try {
-    await RewardConfig.findByIdAndDelete(req.params.id);
+    await rewardConfigsRepo.remove(req.params.id);
     res.json({ message: 'Deleted' });
   } catch (err) {
     next(err);

@@ -1,27 +1,30 @@
 const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
-const authConfig = require('../config/auth');
+const { getAuth } = require('../config/firebase');
 const { registerHandlers } = require('./handlers');
 const logger = require('../config/logger');
 
 function initSocket(httpServer, app) {
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: [
+        process.env.FRONTEND_URL || 'http://localhost:3000',
+        process.env.ADMIN_URL || 'http://localhost:3001',
+      ],
       credentials: true,
     },
   });
 
-  io.use((socket, next) => {
-    const token = socket.handshake.auth?.token || socket.handshake.headers?.cookie?.match(/access_token=([^;]+)/)?.[1];
+  // Optional auth: verify the Firebase ID token if provided. Anonymous viewers allowed.
+  io.use(async (socket, next) => {
+    const token = socket.handshake.auth?.token;
     if (!token) return next();
     try {
-      const payload = jwt.verify(token, authConfig.accessSecret);
-      socket.userId = payload.sub;
-      next();
+      const decoded = await getAuth().verifyIdToken(token);
+      socket.userId = decoded.uid;
     } catch {
-      next();
+      // Ignore invalid tokens — connect as anonymous.
     }
+    next();
   });
 
   io.on('connection', (socket) => {

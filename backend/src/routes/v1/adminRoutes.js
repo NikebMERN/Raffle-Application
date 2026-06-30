@@ -11,6 +11,7 @@ router.use(authenticate, requireAdmin);
 
 router.get('/overview', adminController.overview);
 router.get('/reports', adminController.reports);
+router.get('/ticket-inventory', adminController.ticketInventory);
 router.get('/audit-logs', adminController.auditLogs);
 router.get('/settings', adminController.getSettings);
 router.patch('/settings/:key', adminController.updateSetting);

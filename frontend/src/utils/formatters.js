@@ -1,5 +1,9 @@
-export function formatCurrency(n) {
-  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
+export function formatCurrency(n, currency = 'USD') {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(n) || 0);
+}
+
+export function formatNumber(n) {
+  return new Intl.NumberFormat('en-US').format(Number(n) || 0);
 }
 
 export function formatDate(d) {

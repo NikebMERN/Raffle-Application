@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased font-sans;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+}
+
+@layer components {
+  /* Shared form-control styling used by inputs and selects across admin. */
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900
+      placeholder:text-slate-400 transition-shadow
+      focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+}

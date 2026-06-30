@@ -5,8 +5,12 @@ dist
 .env
 .env.local
 *.log
+firebase-debug.log
 coverage
 .DS_Store
+serviceAccount.json
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
 backend/node_modules
 frontend/node_modules
 frontend/dist

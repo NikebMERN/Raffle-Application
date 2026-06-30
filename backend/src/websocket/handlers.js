@@ -1,10 +1,10 @@
 const EVENTS = require('./events');
-const Raffle = require('../models/Raffle');
+const rafflesRepo = require('../repositories/rafflesRepo');
 
 function registerHandlers(io, socket) {
   socket.on(EVENTS.CLIENT.JOIN_RAFFLE, async ({ raffleId }) => {
     socket.join(`raffle:${raffleId}`);
-    const raffle = await Raffle.findById(raffleId);
+    const raffle = await rafflesRepo.getById(raffleId);
     socket.emit(EVENTS.SERVER.TICKET_COUNT_UPDATE, {
       raffleId,
       soldCount: raffle?.soldCount || 0,
@@ -25,7 +25,7 @@ function registerHandlers(io, socket) {
   });
 
   socket.on(EVENTS.CLIENT.REQUEST_LEADERBOARD, async ({ raffleId }) => {
-    const raffle = await Raffle.findById(raffleId);
+    const raffle = await rafflesRepo.getById(raffleId);
     socket.emit(EVENTS.SERVER.TICKET_COUNT_UPDATE, {
       raffleId,
       soldCount: raffle?.soldCount || 0,

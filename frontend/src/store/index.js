@@ -12,17 +12,27 @@ const raffleSlice = createSlice({
 
 const notificationSlice = createSlice({
   name: 'notifications',
-  initialState: { items: [], unread: 0 },
+  initialState: { items: [], unread: 0, foreground: [] },
   reducers: {
     setNotifications: (state, action) => {
       state.items = action.payload;
       state.unread = action.payload.filter((n) => !n.read).length;
     },
+    pushForegroundNotification: (state, action) => {
+      state.foreground = [action.payload, ...state.foreground].slice(0, 5);
+    },
+    dismissForegroundNotification: (state, action) => {
+      state.foreground = state.foreground.filter((item) => item.id !== action.payload);
+    },
   },
 });
 
 export const { setActiveRaffle, setSoldCount, setTickets } = raffleSlice.actions;
-export const { setNotifications } = notificationSlice.actions;
+export const {
+  setNotifications,
+  pushForegroundNotification,
+  dismissForegroundNotification,
+} = notificationSlice.actions;
 
 export const store = configureStore({
   reducer: {

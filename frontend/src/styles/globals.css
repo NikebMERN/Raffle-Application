@@ -2,6 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased font-sans;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+}
+
+@layer components {
+  /* Shared form-control styling used by inputs and selects. */
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900
+      placeholder:text-slate-400 transition-shadow
+      focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent;
+  }
+}
+
+/* Subtle dotted backdrop used behind hero sections. */
+.bg-dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
 }

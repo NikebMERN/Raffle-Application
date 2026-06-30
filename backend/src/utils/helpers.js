@@ -1,15 +1,15 @@
 const { BULK_DISCOUNTS } = require('./constants');
 
-function calculateBulkDiscount(quantity) {
-  for (const tier of BULK_DISCOUNTS) {
+function calculateBulkDiscount(quantity, discounts = BULK_DISCOUNTS) {
+  for (const tier of discounts) {
     if (quantity >= tier.minTickets) return tier.discount;
   }
   return 0;
 }
 
-function calculateTotalPrice(quantity, unitPrice) {
+function calculateTotalPrice(quantity, unitPrice, discounts = BULK_DISCOUNTS) {
   const subtotal = quantity * unitPrice;
-  const discount = calculateBulkDiscount(quantity);
+  const discount = calculateBulkDiscount(quantity, discounts);
   return {
     subtotal,
     discountRate: discount,

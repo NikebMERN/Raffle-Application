@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, PermissionAction } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -19,7 +19,7 @@ const MODULES = [
 
 const ACTIONS = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'BULK_ACTION', 'DRAW', 'SETTLE'] as const;
 
-async function findOrCreatePermission(module: string, action: string) {
+async function findOrCreatePermission(module: string, action: PermissionAction) {
   const existing = await prisma.permission.findFirst({ where: { module, action } });
   if (existing) return existing;
   return prisma.permission.create({ data: { module, action } });

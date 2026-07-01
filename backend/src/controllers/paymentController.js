@@ -3,7 +3,7 @@ const paymentService = require('../services/paymentService');
 exports.checkout = async (req, res, next) => {
   try {
     const { raffleId, quantity } = req.body;
-    res.json(await paymentService.createCheckout(req.user._id, raffleId, quantity));
+    res.json(await paymentService.createCheckout(req.user.id, raffleId, quantity));
   } catch (err) {
     next(err);
   }
@@ -11,7 +11,15 @@ exports.checkout = async (req, res, next) => {
 
 exports.walletDeposit = async (req, res, next) => {
   try {
-    res.json(await paymentService.createWalletDeposit(req.user._id, req.body.amount));
+    res.json(await paymentService.createWalletDeposit(req.user.id, req.body.amount));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.confirmDeposit = async (req, res, next) => {
+  try {
+    res.json(await paymentService.confirmWalletDeposit(req.user.id, req.body.sessionId));
   } catch (err) {
     next(err);
   }

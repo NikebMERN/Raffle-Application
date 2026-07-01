@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.post('/checkout', authenticate, paymentController.checkout);
 router.post('/wallet-deposit', authenticate, paymentController.walletDeposit);
+router.post('/confirm-deposit', authenticate, paymentController.confirmDeposit);
 router.post('/webhook', express.raw({ type: 'application/json' }), paymentController.webhook);
 router.get('/', authenticate, requireAdmin, paymentController.list);
 

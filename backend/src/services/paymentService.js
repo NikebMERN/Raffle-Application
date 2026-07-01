@@ -125,13 +125,39 @@ async function createWalletDeposit(userId, amount) {
       },
       quantity: 1,
     }],
-    success_url: `${process.env.FRONTEND_URL}/wallet?deposit=success`,
+    success_url: `${process.env.FRONTEND_URL}/wallet?deposit=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.FRONTEND_URL}/wallet?deposit=cancelled`,
     metadata: { transactionId: transaction.id, kind: 'wallet_deposit' },
   });
 
   await transactionsRepo.update(transaction.id, { stripeSessionId: session.id });
   return { sessionId: session.id, url: session.url, transactionId: transaction.id };
+}
+
+// Credit a wallet deposit when the user returns from Stripe Checkout. Verifies the
+// session was actually paid, so this is safe even without a configured webhook.
+// Idempotent: fulfilling an already-completed transaction is a no-op.
+async function confirmWalletDeposit(userId, sessionId) {
+  if (!stripe) throw badRequest('Stripe is not configured');
+  if (!sessionId) throw badRequest('Missing session id');
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  if (!session || session.payment_status !== 'paid') {
+    throw badRequest('Payment not completed yet');
+  }
+
+  const txId = session.metadata?.transactionId;
+  const transaction = txId
+    ? await transactionsRepo.getById(txId)
+    : await transactionsRepo.findByStripeSession(sessionId);
+
+  if (!transaction || transaction.userId !== userId) {
+    throw Object.assign(new Error('Deposit not found'), { status: 404 });
+  }
+
+  await fulfillWalletDeposit(transaction.id);
+  const { balance } = await walletService.getBalance(userId);
+  return { status: 'completed', balance };
 }
 
 async function fulfillWalletDeposit(transactionId) {
@@ -212,6 +238,7 @@ module.exports = {
   createCheckout,
   payWithWallet,
   createWalletDeposit,
+  confirmWalletDeposit,
   fulfillWalletDeposit,
   fulfillTransaction,
   handleStripeWebhook,

@@ -22,8 +22,8 @@ exports.purchase = async (req, res, next) => {
     const { raffleId, quantity, paymentMethod } = req.body;
     const result =
       paymentMethod === 'wallet'
-        ? await paymentService.payWithWallet(req.user._id, raffleId, quantity)
-        : await paymentService.createCheckout(req.user._id, raffleId, quantity);
+        ? await paymentService.payWithWallet(req.user.id, raffleId, quantity)
+        : await paymentService.createCheckout(req.user.id, raffleId, quantity);
     res.json(result);
   } catch (err) {
     next(err);
@@ -32,7 +32,7 @@ exports.purchase = async (req, res, next) => {
 
 exports.myTickets = async (req, res, next) => {
   try {
-    res.json(await ticketService.listTickets({ ...req.query, userId: req.user._id }));
+    res.json(await ticketService.listTickets({ ...req.query, userId: req.user.id }));
   } catch (err) {
     next(err);
   }

@@ -44,15 +44,33 @@ export default function Wallet() {
   }
 
   useEffect(() => {
-    load();
     const params = new URLSearchParams(window.location.search);
-    if (params.get('deposit') === 'success') {
-      setMsg('Deposit successful — your balance will update momentarily.');
-      window.history.replaceState({}, '', '/wallet');
-    } else if (params.get('deposit') === 'cancelled') {
+    const deposit = params.get('deposit');
+    const sessionId = params.get('session_id');
+
+    if (deposit === 'success') {
+      // Confirm the deposit server-side (verifies the paid Stripe session and
+      // credits the wallet) so the balance updates without relying on a webhook.
+      (async () => {
+        try {
+          if (sessionId) await api.post('/api/v1/payments/confirm-deposit', { sessionId });
+          setMsg('Deposit successful — funds added to your wallet.');
+        } catch (e) {
+          setErr(e.message || 'Could not confirm deposit.');
+        } finally {
+          window.history.replaceState({}, '', '/wallet');
+          await load();
+          refreshProfile?.();
+        }
+      })();
+      return;
+    }
+
+    if (deposit === 'cancelled') {
       setErr('Deposit was cancelled.');
       window.history.replaceState({}, '', '/wallet');
     }
+    load();
   }, []);
 
   async function submit(e) {

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: ['.env.local', '.env'] });
 const { initializeFirebase } = require('../config/firebase');
 const settingsService = require('../services/settingsService');
 

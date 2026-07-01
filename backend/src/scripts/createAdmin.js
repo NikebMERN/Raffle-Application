@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: ['.env.local', '.env'] });
 const { initializeFirebase, getAuth } = require('../config/firebase');
 const usersRepo = require('../repositories/usersRepo');
 const { ROLES } = require('../utils/constants');

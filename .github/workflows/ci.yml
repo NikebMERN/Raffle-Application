@@ -30,3 +30,11 @@ jobs:
         run: cd frontend && npm run build
         env:
           VITE_API_URL: http://localhost:5000
+
+      - name: Install admin
+        run: cd admin && npm install
+
+      - name: Build admin
+        run: cd admin && npm run build
+        env:
+          VITE_API_URL: http://localhost:5000

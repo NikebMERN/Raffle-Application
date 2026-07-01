@@ -45,6 +45,14 @@ export default function Wallet() {
 
   useEffect(() => {
     load();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('deposit') === 'success') {
+      setMsg('Deposit successful — your balance will update momentarily.');
+      window.history.replaceState({}, '', '/wallet');
+    } else if (params.get('deposit') === 'cancelled') {
+      setErr('Deposit was cancelled.');
+      window.history.replaceState({}, '', '/wallet');
+    }
   }, []);
 
   async function submit(e) {
@@ -56,8 +64,9 @@ export default function Wallet() {
     setBusy(true);
     try {
       if (tab === 'deposit') {
-        await api.post('/api/v1/users/wallet/topup', { amount: value });
-        setMsg(`Deposited ${formatCurrency(value)}.`);
+        const res = await api.post('/api/v1/payments/wallet-deposit', { amount: value });
+        if (res.data.url) { window.location.href = res.data.url; return; }
+        setMsg(res.data.message || `Deposited ${formatCurrency(value)}.`);
       } else if (tab === 'withdraw') {
         const res = await api.post('/api/v1/users/wallet/withdraw', { amount: value });
         setMsg(res.data.message || 'Withdrawal requested.');
@@ -148,6 +157,9 @@ export default function Wallet() {
               {busy ? 'Processing…' : actionLabel}
             </Button>
           </form>
+          {tab === 'deposit' && (
+            <p className="text-xs text-slate-400 mt-3">Funds are added securely via card (Stripe). Use your wallet to buy tickets.</p>
+          )}
           {tab === 'withdraw' && (
             <p className="text-xs text-slate-400 mt-3">Withdrawals are held and paid out after admin approval.</p>
           )}

@@ -1,8 +1,47 @@
 const rafflesRepo = require('../repositories/rafflesRepo');
 const ticketsRepo = require('../repositories/ticketsRepo');
 const auditLogsRepo = require('../repositories/auditLogsRepo');
-const { RAFFLE_STATUS } = require('../utils/constants');
+const { RAFFLE_STATUS, PRIZE_DISTRIBUTION } = require('../utils/constants');
 const { paginate, paginatedResponse } = require('../utils/helpers');
+
+function round2(n) {
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+
+// Build a sensible default prize split for `winnersCount` winners, seeded from the
+// global PRIZE_DISTRIBUTION and normalised so the percentages total 100.
+function defaultDistribution(winnersCount) {
+  const n = Math.max(1, Math.floor(Number(winnersCount) || 1));
+  const base = Array.from({ length: n }, (_, i) => (PRIZE_DISTRIBUTION[i]?.percentage ?? 1));
+  const total = base.reduce((s, p) => s + p, 0) || 1;
+  const dist = base.map((p, i) => ({ rank: i + 1, percentage: round2((p / total) * 100) }));
+  // Absorb any rounding drift into the top rank so the total is exactly 100.
+  const drift = round2(100 - dist.reduce((s, d) => s + d.percentage, 0));
+  if (dist.length) dist[0].percentage = round2(dist[0].percentage + drift);
+  return dist;
+}
+
+// Validate an admin-supplied distribution against the round's winner count.
+function normaliseDistribution(input, winnersCount) {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw Object.assign(new Error('Prize distribution must be a non-empty list'), { status: 400 });
+  }
+  if (input.length !== winnersCount) {
+    throw Object.assign(new Error(`Prize distribution must have exactly ${winnersCount} entries (one per winner)`), { status: 400 });
+  }
+  const dist = input.map((entry, i) => {
+    const percentage = Number(entry?.percentage);
+    if (!Number.isFinite(percentage) || percentage < 0) {
+      throw Object.assign(new Error(`Rank ${i + 1} percentage must be zero or greater`), { status: 400 });
+    }
+    return { rank: i + 1, percentage: round2(percentage) };
+  });
+  const total = round2(dist.reduce((s, d) => s + d.percentage, 0));
+  if (total > 100.01) {
+    throw Object.assign(new Error(`Percentages total ${total}%, which exceeds 100%`), { status: 400 });
+  }
+  return dist;
+}
 
 async function createRaffle(data, userId) {
   if (data.requiredSold > data.totalTickets) {
@@ -15,12 +54,19 @@ async function createRaffle(data, userId) {
   const roundNumber = await rafflesRepo.getNextRoundNumber();
   const prizePool = data.prizePool ?? data.totalTickets * data.ticketPrice * 0.5;
 
+  // Use the admin-selected distribution if provided (e.g. from a saved reward
+  // config), otherwise fall back to a normalised default for the winner count.
+  const prizeDistribution = Array.isArray(data.prizeDistribution) && data.prizeDistribution.length
+    ? normaliseDistribution(data.prizeDistribution, data.winnersCount)
+    : defaultDistribution(data.winnersCount);
+
   const raffle = await rafflesRepo.create({
     ...data,
     startDate: data.startDate ? new Date(data.startDate) : new Date(),
     endDate: data.endDate ? new Date(data.endDate) : null,
     roundNumber,
     prizePool,
+    prizeDistribution,
     soldCount: 0,
     revenue: 0,
     winners: [],
@@ -88,6 +134,27 @@ async function cancelRaffle(id, userId) {
   return updated;
 }
 
+// Set the per-round winner prize split. Editable while draft or active (i.e. before
+// the draw locks the round to COMPLETED).
+async function setPrizeDistribution(id, distribution, userId) {
+  const raffle = await rafflesRepo.getById(id);
+  if (!raffle) throw Object.assign(new Error('Raffle not found'), { status: 404 });
+  if (raffle.status === RAFFLE_STATUS.COMPLETED || raffle.status === RAFFLE_STATUS.CANCELLED) {
+    throw Object.assign(new Error('Prize distribution can only be changed before the draw'), { status: 400 });
+  }
+
+  const prizeDistribution = normaliseDistribution(distribution, raffle.winnersCount);
+  const updated = await rafflesRepo.update(id, { prizeDistribution });
+  await auditLogsRepo.record({
+    userId,
+    action: 'UPDATE_PRIZE_DISTRIBUTION',
+    entity: 'raffle',
+    entityId: id,
+    newValue: { prizeDistribution },
+  });
+  return updated;
+}
+
 module.exports = {
   createRaffle,
   publishRaffle,
@@ -95,4 +162,6 @@ module.exports = {
   getRaffle,
   updateRaffle,
   cancelRaffle,
+  setPrizeDistribution,
+  defaultDistribution,
 };

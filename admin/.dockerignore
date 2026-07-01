@@ -1,0 +1,10 @@
+node_modules
+dist
+npm-debug.log*
+coverage
+.git
+.gitignore
+Dockerfile
+.dockerignore
+# NOTE: .env is intentionally NOT ignored — Vite bakes VITE_* (public) values at
+# build time. Set VITE_API_URL to your deployed API URL before building.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -22,21 +22,45 @@ export default function RaffleDetail() {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [balance, setBalance] = useState(null);
+  const [success, setSuccess] = useState('');
+  const [insufficient, setInsufficient] = useState(false);
+
+  function loadRaffle() {
+    return api.get(`/api/v1/raffles/public/${id}`).then((r) => setRaffle(r.data)).catch(() => setRaffle(false));
+  }
+
+  function loadBalance() {
+    if (!user) return Promise.resolve();
+    return api.get('/api/v1/users/wallet').then((r) => setBalance(r.data.balance ?? 0)).catch(() => {});
+  }
 
   useEffect(() => {
-    api.get(`/api/v1/raffles/public/${id}`).then((r) => setRaffle(r.data)).catch(() => setRaffle(false));
+    loadRaffle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    loadBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, id]);
 
   async function buy() {
     if (!user) return navigate('/login');
     setLoading(true);
     setError('');
+    setSuccess('');
+    setInsufficient(false);
     try {
-      const res = await api.post('/api/v1/tickets/purchase', { raffleId: id, quantity, paymentMethod: 'stripe' });
-      if (res.data.url) window.location.href = res.data.url;
-      else navigate('/my-tickets?success=true');
+      await api.post('/api/v1/tickets/purchase', { raffleId: id, quantity, paymentMethod: 'wallet' });
+      // Refresh the round (updates the sold bar) and the wallet balance.
+      await Promise.all([loadRaffle(), loadBalance()]);
+      setSuccess(`Purchased ${quantity} ticket(s) from your wallet.`);
+      setQuantity(1);
     } catch (err) {
-      setError(err.message || 'Purchase failed');
+      const msg = err.message || 'Purchase failed';
+      setError(msg);
+      if (/insufficient/i.test(msg)) setInsufficient(true);
     } finally {
       setLoading(false);
     }
@@ -113,13 +137,35 @@ export default function RaffleDetail() {
             <span className="text-sm text-slate-500">Estimated total</span>
             <span className="text-lg font-bold">{formatCurrency(total, currency)}</span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">Bulk discounts are applied automatically at checkout.</p>
+          <p className="text-xs text-slate-400 mt-1">Paid from your wallet. Bulk discounts applied at checkout.</p>
 
+          {user && (
+            <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
+              <span className="text-slate-500">Wallet balance</span>
+              <span className={`font-semibold ${balance !== null && balance < total ? 'text-red-600' : 'text-slate-800'}`}>
+                {balance === null ? '—' : formatCurrency(balance, currency)}
+              </span>
+            </div>
+          )}
+
+          {success && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">{success}</p>}
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-          <Button onClick={buy} loading={loading} disabled={!isOpen} className="mt-4 w-full" size="lg">
-            {!isOpen ? 'Round closed' : user ? 'Buy now' : 'Sign in to buy'}
-          </Button>
+          {insufficient ? (
+            <Link to="/wallet" className="block mt-4">
+              <Button className="w-full" size="lg" variant="accent">Add funds to wallet</Button>
+            </Link>
+          ) : (
+            <Button onClick={buy} loading={loading} disabled={!isOpen} className="mt-4 w-full" size="lg">
+              {!isOpen ? 'Round closed' : user ? 'Buy now' : 'Sign in to buy'}
+            </Button>
+          )}
+
+          {user && !insufficient && (
+            <Link to="/wallet" className="block text-center mt-2 text-xs text-primary hover:underline">
+              Top up wallet
+            </Link>
+          )}
         </Card>
       </div>
     </div>

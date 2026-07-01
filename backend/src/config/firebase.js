@@ -23,20 +23,32 @@ function buildCredential() {
   return null;
 }
 
+// True when running on Cloud Functions / Cloud Run, where the Admin SDK can
+// auto-initialize with the built-in service account (no explicit key needed).
+function onGoogleCloud() {
+  return Boolean(process.env.K_SERVICE || process.env.FUNCTION_TARGET || process.env.FUNCTIONS_EMULATOR);
+}
+
 function initializeFirebase() {
   if (app) return app;
 
   const config = buildCredential();
-  if (!config) {
+
+  if (!config && !onGoogleCloud()) {
     throw new Error(
       'Firebase is not configured. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY '
         + '(or GOOGLE_APPLICATION_CREDENTIALS) in backend/.env.',
     );
   }
 
-  app = admin.apps.length
-    ? admin.app()
-    : admin.initializeApp({ credential: config.credential, projectId: config.projectId });
+  if (admin.apps.length) {
+    app = admin.app();
+  } else if (config) {
+    app = admin.initializeApp({ credential: config.credential, projectId: config.projectId });
+  } else {
+    // Cloud Functions / Cloud Run: default credentials from the runtime.
+    app = admin.initializeApp();
+  }
 
   db = admin.firestore(app);
   db.settings({ ignoreUndefinedProperties: true });

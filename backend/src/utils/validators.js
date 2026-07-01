@@ -8,6 +8,9 @@ const createRaffleSchema = Joi.object({
   requiredSold: Joi.number().integer().min(1).default(800),
   winnersCount: Joi.number().integer().min(1).default(10),
   prizePool: Joi.number().min(0).optional(),
+  prizeDistribution: Joi.array()
+    .items(Joi.object({ rank: Joi.number().integer().min(1), percentage: Joi.number().min(0) }))
+    .optional(),
   startDate: Joi.date().required(),
   endDate: Joi.date().greater(Joi.ref('startDate')).required(),
   maxTicketsPerUser: Joi.number().integer().min(1).default(100),

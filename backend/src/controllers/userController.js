@@ -2,6 +2,9 @@ const usersRepo = require('../repositories/usersRepo');
 const auditLogsRepo = require('../repositories/auditLogsRepo');
 const notificationService = require('../services/notificationService');
 const { paginate, paginatedResponse, omit } = require('../utils/helpers');
+const { ROLES } = require('../utils/constants');
+
+const ALLOWED_ROLES = Object.values(ROLES);
 
 exports.list = async (req, res, next) => {
   try {
@@ -35,6 +38,9 @@ exports.update = async (req, res, next) => {
 
 exports.setRole = async (req, res, next) => {
   try {
+    if (!ALLOWED_ROLES.includes(req.body.role)) {
+      return res.status(400).json({ message: `Invalid role. Allowed roles: ${ALLOWED_ROLES.join(', ')}` });
+    }
     const user = await usersRepo.update(req.params.id, { role: req.body.role });
     await auditLogsRepo.record({ userId: req.user.id, action: 'SET_ROLE', entity: 'user', entityId: req.params.id, newValue: { role: req.body.role } });
     res.json(user);

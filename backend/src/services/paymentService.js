@@ -89,6 +89,70 @@ async function payWithWallet(userId, raffleId, quantity) {
   return transactionsRepo.getById(transaction.id);
 }
 
+function badRequest(message) {
+  return Object.assign(new Error(message), { status: 400 });
+}
+
+// Fund the in-app wallet via Stripe. In demo mode (no Stripe key) the deposit is
+// credited instantly; otherwise we return a Checkout URL and credit on webhook.
+async function createWalletDeposit(userId, amount) {
+  const value = Math.round((Number(amount) + Number.EPSILON) * 100) / 100;
+  if (!Number.isFinite(value) || value <= 0) throw badRequest('Enter a valid amount');
+  if (value < 1) throw badRequest('Minimum deposit is $1');
+  if (value > 10000) throw badRequest('Maximum deposit is $10,000');
+
+  const transaction = await transactionsRepo.create({
+    userId,
+    kind: 'wallet_deposit',
+    amount: value,
+    status: TRANSACTION_STATUS.PENDING,
+    paymentMethod: 'stripe',
+  });
+
+  if (!stripe) {
+    await fulfillWalletDeposit(transaction.id);
+    return { message: 'Demo mode: deposit credited instantly', transactionId: transaction.id, demo: true };
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    payment_method_types: ['card'],
+    line_items: [{
+      price_data: {
+        currency: 'usd',
+        product_data: { name: 'Wallet deposit' },
+        unit_amount: Math.round(value * 100),
+      },
+      quantity: 1,
+    }],
+    success_url: `${process.env.FRONTEND_URL}/wallet?deposit=success`,
+    cancel_url: `${process.env.FRONTEND_URL}/wallet?deposit=cancelled`,
+    metadata: { transactionId: transaction.id, kind: 'wallet_deposit' },
+  });
+
+  await transactionsRepo.update(transaction.id, { stripeSessionId: session.id });
+  return { sessionId: session.id, url: session.url, transactionId: transaction.id };
+}
+
+async function fulfillWalletDeposit(transactionId) {
+  const transaction = await transactionsRepo.getById(transactionId);
+  if (!transaction || transaction.status === TRANSACTION_STATUS.COMPLETED) return transaction;
+
+  await walletService.credit(transaction.userId, transaction.amount, { type: 'deposit', reference: 'Card deposit' });
+  await transactionsRepo.update(transactionId, { status: TRANSACTION_STATUS.COMPLETED });
+
+  const user = await usersRepo.getById(transaction.userId);
+  if (user) {
+    await notificationService.sendInApp(
+      user.id,
+      'purchases',
+      'Deposit received',
+      `$${transaction.amount.toFixed(2)} was added to your wallet.`,
+    );
+  }
+  return transactionsRepo.getById(transactionId);
+}
+
 async function fulfillTransaction(transactionId) {
   const transaction = await transactionsRepo.getById(transactionId);
   if (!transaction || transaction.status === TRANSACTION_STATUS.COMPLETED) return transaction;
@@ -129,7 +193,10 @@ async function handleStripeWebhook(payload, signature) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const transaction = await transactionsRepo.findByStripeSession(session.id);
-    if (transaction) await fulfillTransaction(transaction.id);
+    if (transaction) {
+      if (transaction.kind === 'wallet_deposit') await fulfillWalletDeposit(transaction.id);
+      else await fulfillTransaction(transaction.id);
+    }
   }
   return { received: true };
 }
@@ -144,6 +211,8 @@ async function listTransactions(query) {
 module.exports = {
   createCheckout,
   payWithWallet,
+  createWalletDeposit,
+  fulfillWalletDeposit,
   fulfillTransaction,
   handleStripeWebhook,
   listTransactions,

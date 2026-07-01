@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "default": "raffle-app-22ff4"
+  },
+  "targets": {
+    "raffle-app-22ff4": {
+      "hosting": {
+        "app": ["raffle-app-22ff4"],
+        "admin": ["raffle-app-22ff4-admin"]
+      }
+    }
+  }
+}

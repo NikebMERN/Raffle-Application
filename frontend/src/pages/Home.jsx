@@ -26,10 +26,18 @@ export default function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-900 via-primary to-primary-700 text-white">
-        <div className="absolute inset-0 bg-dot-grid opacity-60" />
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/20 blur-3xl" />
-        <div className="relative max-w-7xl mx-auto px-4 py-20 sm:py-28 text-center">
+      <section className="relative isolate overflow-hidden bg-primary-900 text-white">
+        <img
+          src="/hero-bg.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 h-full w-full object-cover object-center"
+        />
+        {/* Lighter overlay so the photo reads clearly, with a darker base for text contrast. */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-primary-900/85 via-primary-900/45 to-primary-900/40" />
+        <div className="absolute inset-0 -z-10 bg-dot-grid opacity-20" />
+        <div className="absolute -top-24 -right-24 -z-10 h-72 w-72 rounded-full bg-accent/20 blur-3xl" />
+        <div className="relative mx-auto flex min-h-[70vh] max-w-7xl flex-col items-center justify-center px-4 py-20 text-center sm:py-28">
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold ring-1 ring-white/20">
             <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" /> Community raffle · fair &amp; transparent
           </span>

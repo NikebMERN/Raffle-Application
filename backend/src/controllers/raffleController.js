@@ -48,3 +48,11 @@ exports.cancel = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.setPrizeDistribution = async (req, res, next) => {
+  try {
+    res.json(await raffleService.setPrizeDistribution(req.params.id, req.body.prizeDistribution, req.user._id));
+  } catch (err) {
+    next(err);
+  }
+};

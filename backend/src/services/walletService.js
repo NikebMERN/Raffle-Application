@@ -4,6 +4,7 @@ const usersRepo = require('../repositories/usersRepo');
 const walletTxRepo = require('../repositories/walletTransactionsRepo');
 const auditLogsRepo = require('../repositories/auditLogsRepo');
 const { signEntry, verifyEntry } = require('../utils/walletCrypto');
+const { isStripeConfigured } = require('../config/payments');
 const { WALLET_TX, WALLET_LIMITS, TRANSACTION_STATUS } = require('../utils/constants');
 
 function badRequest(message) {
@@ -87,8 +88,17 @@ async function debit(userId, amount, reference, { type = WALLET_TX.PURCHASE, cou
 
 // --- Public operations ------------------------------------------------------
 
+// Direct wallet credit with NO payment — a demo convenience only. Once Stripe is
+// configured (a real deployment), funding must go through the card deposit flow
+// (POST /api/v1/payments/wallet-deposit), otherwise anyone could mint balance.
 async function topUp(userId, amount) {
-  return credit(userId, amount, { type: WALLET_TX.DEPOSIT, reference: 'Wallet top-up' });
+  if (isStripeConfigured()) {
+    throw Object.assign(
+      new Error('Direct top-up is disabled. Add funds by card via wallet deposit.'),
+      { status: 403 },
+    );
+  }
+  return credit(userId, amount, { type: WALLET_TX.DEPOSIT, reference: 'Wallet top-up (demo)' });
 }
 
 // Withdraw funds: debit immediately (held) and log a pending payout request.

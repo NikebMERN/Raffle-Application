@@ -9,9 +9,20 @@ exports.checkout = async (req, res, next) => {
   }
 };
 
+exports.walletDeposit = async (req, res, next) => {
+  try {
+    res.json(await paymentService.createWalletDeposit(req.user._id, req.body.amount));
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.webhook = async (req, res, next) => {
   try {
-    const result = await paymentService.handleStripeWebhook(req.body, req.headers['stripe-signature']);
+    // On Cloud Functions the raw payload is on req.rawBody; locally express.raw
+    // puts the Buffer on req.body. Prefer rawBody so signature checks pass in both.
+    const payload = req.rawBody || req.body;
+    const result = await paymentService.handleStripeWebhook(payload, req.headers['stripe-signature']);
     res.json(result);
   } catch (err) {
     next(err);

@@ -1,11 +1,8 @@
 module.exports = {
   ROLES: {
-    GUEST: 'guest',
     USER: 'user',
     ADMIN: 'admin',
     SUPER_ADMIN: 'super_admin',
-    SELLER: 'community_seller',
-    FINANCE: 'finance',
   },
 
   RAFFLE_STATUS: {

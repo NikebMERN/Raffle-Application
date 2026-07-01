@@ -1,0 +1,36 @@
+# Production-style compose for the current stack:
+#   backend  (Express + Firebase)      -> :5000
+#   frontend (React SPA via nginx)     -> :3000
+#   admin    (React SPA via nginx)     -> :3001
+#
+# Secrets: the backend reads its config at runtime from backend/.env (injected
+# via env_file — NOT baked into the image). The SPAs bake their public VITE_*
+# values at BUILD time, so set VITE_API_URL in frontend/.env and admin/.env to
+# your deployed API URL before running `docker compose build`.
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  admin:
+    build: ./admin
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

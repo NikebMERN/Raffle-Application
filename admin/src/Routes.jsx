@@ -5,8 +5,10 @@ import Login from './components/auth/Login';
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import RafflesAdmin from './pages/admin/RafflesAdmin';
+import RaffleDetailAdmin from './pages/admin/RaffleDetailAdmin';
 import DrawsAdmin from './pages/admin/DrawsAdmin';
 import UsersAdmin from './pages/admin/UsersAdmin';
+import UserDetailAdmin from './pages/admin/UserDetailAdmin';
 import RewardsAdmin from './pages/admin/RewardsAdmin';
 import ReportsAdmin from './pages/admin/ReportsAdmin';
 import AuditLogsAdmin from './pages/admin/AuditLogsAdmin';
@@ -29,8 +31,10 @@ export default function AppRoutes() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="raffles" element={<RafflesAdmin />} />
+          <Route path="raffles/:id" element={<RaffleDetailAdmin />} />
           <Route path="draws" element={<DrawsAdmin />} />
           <Route path="users" element={<UsersAdmin />} />
+          <Route path="users/:id" element={<UserDetailAdmin />} />
           <Route path="rewards" element={<RewardsAdmin />} />
           <Route path="reports" element={<ReportsAdmin />} />
           <Route path="audit-logs" element={<AuditLogsAdmin />} />

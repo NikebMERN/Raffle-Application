@@ -4,11 +4,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useConfig } from '../../context/ConfigContext';
 import Button from './Button';
 import Footer from './Footer';
+import NotificationCenter from './NotificationCenter';
 
-function NavItem({ to, children, onClick }) {
+function NavItem({ to, children, onClick, end }) {
   return (
     <NavLink
       to={to}
+      end={end}
       onClick={onClick}
       className={({ isActive }) =>
         `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -41,6 +43,7 @@ export default function Layout() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
+            <NavItem to="/" end>Home</NavItem>
             <NavItem to="/raffles">Raffles</NavItem>
             {user && <NavItem to="/dashboard">Dashboard</NavItem>}
             {user && <NavItem to="/my-tickets">My Tickets</NavItem>}
@@ -50,6 +53,7 @@ export default function Layout() {
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
+                <NotificationCenter />
                 <Link to="/dashboard" className="text-sm text-slate-500 hover:text-primary">Hi, {user.firstName || user.displayName || 'there'}</Link>
                 <Button variant="outline" size="sm" onClick={async () => { await logout(); navigate('/'); }}>
                   Logout
@@ -60,9 +64,11 @@ export default function Layout() {
             )}
           </div>
 
+          <div className="md:hidden flex items-center gap-1">
+            {user && <NotificationCenter />}
           <button
             type="button"
-            className="md:hidden grid h-10 w-10 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"
+            className="grid h-10 w-10 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"
             aria-label="Toggle menu"
             onClick={() => setOpen((v) => !v)}
           >
@@ -70,10 +76,12 @@ export default function Layout() {
               {open ? <path d="M6 6l12 12M18 6 6 18" /> : <><path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" /></>}
             </svg>
           </button>
+          </div>
         </div>
 
         {open && (
           <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3 flex flex-col gap-1">
+            <NavItem to="/" end onClick={close}>Home</NavItem>
             <NavItem to="/raffles" onClick={close}>Raffles</NavItem>
             {user && <NavItem to="/dashboard" onClick={close}>Dashboard</NavItem>}
             {user && <NavItem to="/my-tickets" onClick={close}>My Tickets</NavItem>}

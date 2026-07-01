@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -6,7 +7,7 @@ import Spinner from '../../components/common/Spinner';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 
-const ROLE_OPTIONS = ['user', 'community_seller', 'finance', 'admin', 'super_admin'];
+const ROLE_OPTIONS = ['user', 'admin', 'super_admin'];
 
 export default function UsersAdmin() {
   const { user: me } = useAuth();
@@ -102,7 +103,9 @@ export default function UsersAdmin() {
                       <div className="flex items-center gap-2">
                         {u.photoURL && <img src={u.photoURL} alt="" className="w-7 h-7 rounded-full" />}
                         <div>
-                          <p className="font-medium">{u.displayName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || '—'}</p>
+                          <Link to={`/admin/users/${u._id}`} className="font-medium hover:text-primary hover:underline">
+                            {u.displayName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || '—'}
+                          </Link>
                           <p className="text-slate-500 text-xs">{u.email}</p>
                         </div>
                       </div>
@@ -125,9 +128,14 @@ export default function UsersAdmin() {
                     </td>
                     <td className="py-3 pr-4 whitespace-nowrap text-slate-500">{u.lastLoginAt ? formatDate(u.lastLoginAt) : '—'}</td>
                     <td className="py-3 pr-0 text-right">
-                      {u._id !== me?._id && u.isActive !== false && (
-                        <Button variant="danger" disabled={busyId === u._id} onClick={() => toggleBan(u)}>Ban</Button>
-                      )}
+                      <div className="flex gap-2 justify-end">
+                        <Link to={`/admin/users/${u._id}`}>
+                          <Button variant="outline" size="sm">View</Button>
+                        </Link>
+                        {u._id !== me?._id && u.isActive !== false && (
+                          <Button variant="danger" size="sm" disabled={busyId === u._id} onClick={() => toggleBan(u)}>Ban</Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

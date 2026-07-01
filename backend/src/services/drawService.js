@@ -64,11 +64,15 @@ async function executeDraw(raffleId, userId, io) {
     const { claimDeadlineDays } = await settingsService.getRaffleConfig();
     const seed = generateDrawSeed();
     const shuffled = shuffleArray(soldTickets);
-    const winnersCount = Math.min(raffle.winnersCount, PRIZE_DISTRIBUTION.length, shuffled.length);
+    // Prefer the round's own configured prize split; fall back to the global default.
+    const distribution = Array.isArray(raffle.prizeDistribution) && raffle.prizeDistribution.length
+      ? raffle.prizeDistribution
+      : PRIZE_DISTRIBUTION;
+    const winnersCount = Math.min(raffle.winnersCount, distribution.length, shuffled.length);
     const selected = shuffled.slice(0, winnersCount);
 
     const winners = selected.map((ticket, index) => {
-      const dist = PRIZE_DISTRIBUTION[index] || { rank: index + 1, percentage: 3 };
+      const dist = distribution[index] || { rank: index + 1, percentage: 3 };
       return {
         rank: dist.rank,
         ticketId: ticket.id,
@@ -106,6 +110,7 @@ async function executeDraw(raffleId, userId, io) {
         'wins',
         'Congratulations! You Won!',
         `You won rank #${winner.rank} with ticket #${winner.ticketNumber}. Prize: $${winner.prizeAmount.toFixed(2)}`,
+        { raffleId, rank: winner.rank, prizeAmount: winner.prizeAmount, ticketNumber: winner.ticketNumber },
       );
       const user = await usersRepo.getById(winner.userId);
       if (user) {

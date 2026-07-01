@@ -13,6 +13,7 @@ router.get('/', authenticate, requireAdmin, raffleController.list);
 router.get('/:id', authenticate, raffleController.get);
 router.post('/', authenticate, requireAdmin, validate(createRaffleSchema), raffleController.create);
 router.patch('/:id', authenticate, requireAdmin, raffleController.update);
+router.put('/:id/prize-distribution', authenticate, requireAdmin, raffleController.setPrizeDistribution);
 router.post('/:id/publish', authenticate, requireAdmin, raffleController.publish);
 router.post('/:id/cancel', authenticate, requireAdmin, raffleController.cancel);
 

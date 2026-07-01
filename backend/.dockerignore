@@ -1,0 +1,16 @@
+# Keep secrets and cruft OUT of the backend image.
+node_modules
+npm-debug.log*
+coverage
+.git
+.gitignore
+Dockerfile
+.dockerignore
+*.md
+
+# Secrets — never bake these into an image (inject at runtime instead).
+.env
+.env.*
+*firebase-adminsdk*.json
+serviceAccount*.json
+*.pem

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: ['.env.local', '.env'] });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -7,7 +7,7 @@ const cookieParser = require('cookie-parser');
 const xss = require('xss-clean');
 const { initializeFirebase, getDb } = require('./config/firebase');
 const errorHandler = require('./middleware/errorHandler');
-const { apiLimiter } = require('./middleware/rateLimit');
+const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 
 const authRoutes = require('./routes/v1/authRoutes');
 const configRoutes = require('./routes/v1/configRoutes');
@@ -19,12 +19,26 @@ const adminRoutes = require('./routes/v1/adminRoutes');
 
 const app = express();
 
+const isProd = process.env.NODE_ENV === 'production';
+
+// Behind a reverse proxy / load balancer (nginx, most PaaS) so req.ip and the
+// rate limiter see the real client IP, and secure cookies work. Configurable via
+// TRUST_PROXY (number of hops or a value like 'loopback'); defaults on in prod.
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy !== undefined) {
+  app.set('trust proxy', Number.isNaN(Number(trustProxy)) ? trustProxy : Number(trustProxy));
+} else if (isProd) {
+  app.set('trust proxy', 1);
+}
+
 const WEBHOOK_PATH = '/api/v1/payments/webhook';
 
-// Allow the user frontend (:3000) and the separate admin app (:3001).
+// Allowed browser origins: the user frontend + admin app, plus any extra origins
+// listed (comma-separated) in CORS_ORIGINS. Falls back to localhost dev ports.
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   process.env.ADMIN_URL || 'http://localhost:3001',
+  ...(process.env.CORS_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean),
 ];
 
 app.use(helmet());
@@ -36,7 +50,7 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(morgan('dev'));
+app.use(morgan(isProd ? 'combined' : 'dev'));
 app.use(cookieParser());
 
 // Stripe needs the raw body to verify webhook signatures, so JSON parsing is
@@ -63,13 +77,17 @@ app.get('/api/health', async (_req, res) => {
   });
 });
 
-app.use('/api/v1/auth', authRoutes);
+// Tighter rate limit on the auth surface (login/session/refresh).
+app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use('/api/v1/config', configRoutes);
 app.use('/api/v1/raffles', raffleRoutes);
 app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/admin', adminRoutes);
+
+// Unknown API route → JSON 404 (instead of Express' default HTML page).
+app.use('/api', (_req, res) => res.status(404).json({ message: 'Not found' }));
 
 app.use(errorHandler);
 
